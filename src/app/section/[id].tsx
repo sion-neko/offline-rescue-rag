@@ -33,7 +33,7 @@ export default function Section() {
           {chunk.title}
         </Text>
         {highlight >= 0 && (
-          <Text style={[styles.caption, { color: t.textMuted }]}>マーカーの行が、AIのまとめの出典です</Text>
+          <Text style={[styles.caption, { color: t.textSub }]}>マーカーの行が、AIのまとめの出典です</Text>
         )}
         <View style={styles.points}>
           {chunk.sentences.map((s, i) => (
@@ -44,7 +44,7 @@ export default function Section() {
           ))}
         </View>
         <GlossaryChips texts={[chunk.title, ...chunk.sentences]} />
-        <Text style={[styles.caption, { color: t.textMuted }]}>出典：山の安全マニュアル（検証用の仮データ）</Text>
+        <Text style={[styles.caption, { color: t.textSub }]}>出典：山の安全マニュアル（検証用の仮データ）</Text>
 
         {chunk.related.length > 0 && (
           <View style={styles.block}>

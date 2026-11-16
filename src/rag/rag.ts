@@ -63,8 +63,11 @@ export async function search(question: string, engine: Engine, store: VectorStor
   let extras: ExtraLine[] = [];
   if (top && used.length > 1) {
     const sv = normalize(await engine.embed(config.similarityPrefix + expanded));
+    // 「あわせて確認」は、マニュアルで関連として指定した資料からだけ選ぶ
+    // （ベクトルが近いだけだと「寒い」に熱中症の「体を冷やす」が混ざるなど、逆の内容が出ることがあるため）
     extras = used
       .slice(1)
+      .filter((h) => top.chunk.related.includes(h.chunk.id))
       .flatMap((h) => h.chunk.sentenceVectors.map((v, i) => ({ chunk: h.chunk, lineIndex: i, score: dot(v, sv) })))
       .filter((x) => x.score >= config.extraMinScore)
       .sort((a, b) => b.score - a.score)

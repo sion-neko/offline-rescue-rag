@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View, type ViewStyle } from 're
 import { router } from 'expo-router';
 import { useTheme } from '../state/app';
 import { BackIcon, PhoneIcon, SearchIcon } from './icons';
-import { font, minTouch } from './theme';
+import { minTouch } from './theme';
 
 /** 上部のバー：戻る＋検索欄＋通報ボタン。どの画面からも通報まで 2 タップで行ける。 */
 export function TopBar({
@@ -106,7 +106,7 @@ export function SearchField({
 export function SectionLabel({ children }: { children: ReactNode }) {
   const t = useTheme();
   return (
-    <Text style={[styles.sectionLabel, { color: t.textMuted }]} accessibilityRole="header">
+    <Text style={[styles.sectionLabel, { color: t.textSub }]} accessibilityRole="header">
       {children}
     </Text>
   );
@@ -162,5 +162,5 @@ const styles = StyleSheet.create({
   searchCompact: { flex: 1, height: 44, paddingHorizontal: 14, borderRadius: 22 },
   searchLarge: { height: 54, paddingHorizontal: 18, borderRadius: 27 },
   searchInput: { flex: 1, minWidth: 0, height: '100%' },
-  sectionLabel: { fontSize: font.small, fontWeight: '700' },
+  sectionLabel: { fontSize: 15, fontWeight: '700' },
 });

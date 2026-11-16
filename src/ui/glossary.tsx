@@ -102,7 +102,7 @@ export function GlossaryChips({ texts }: { texts: string[] }) {
   if (!terms.length) return null;
   return (
     <View style={styles.chips} testID="glossary-chips">
-      <Text style={[styles.chipsLabel, { color: t.textMuted }]}>用語</Text>
+      <Text style={[styles.chipsLabel, { color: t.textSub }]}>用語</Text>
       {terms.map((g) => (
         <Pressable
           key={g.term}
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   term: { fontSize: 24, fontWeight: '700' },
   body: { fontSize: font.body, lineHeight: 28 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  chipsLabel: { fontSize: font.caption, fontWeight: '700', marginRight: 2 },
+  chipsLabel: { fontSize: 15, fontWeight: '700', marginRight: 2 },
   chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, justifyContent: 'center' },
-  chipText: { fontSize: 15, fontWeight: '600' },
+  chipText: { fontSize: 16, fontWeight: '700' },
 });

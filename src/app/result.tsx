@@ -109,7 +109,7 @@ function ResultBody({ q }: { q: string }) {
             <View style={styles.block} testID="top-result">
               <SectionLabel>いちばん近い資料</SectionLabel>
               {result.weak && (
-                <Text style={[styles.small, { color: t.textSub }]} testID="weak-note">
+                <Text style={[styles.body, { color: t.textSub }]} testID="weak-note">
                   質問との関係が薄いかもしれません。違うときは、言葉を変えるか
                   <Text onPress={() => router.push('/contents')} style={{ color: t.accent, fontWeight: '700' }}>
                     {' 目次 '}
@@ -205,7 +205,7 @@ function ResultBody({ q }: { q: string }) {
               </View>
             )}
 
-            <Text style={[styles.caption, { color: t.textMuted }]}>
+            <Text style={[styles.caption, { color: t.textSub }]}>
               資料は検証用の仮データです。命に関わるときは、迷わず110番か119番へ。
             </Text>
           </>
@@ -287,7 +287,7 @@ function SummaryBlock({
             </Text>
           </View>
           {state.kind === 'running' && (
-            <Text style={[styles.body, { color: t.textSub }]}>{state.text || '資料を読んでいます…'}</Text>
+            <Text style={[styles.body, { color: t.textSub }]}>{state.text || '資料を読んでいます。1分ほどかかることがあります。上の資料は先に読めます'}</Text>
           )}
           {state.kind === 'error' && (
             <Text style={[styles.body, { color: t.textSub }]}>AIのまとめを作れませんでした。上の資料はそのまま読めます。</Text>
@@ -315,8 +315,8 @@ function SummaryBlock({
               </View>
             ))}
           {state.kind === 'done' && (
-            <Text style={[styles.caption, { color: t.textMuted }]}>
-              AIは資料にないことを書くことがあります。行動の前に、上の原文を確かめてください。
+            <Text style={[styles.warn, { color: t.text }]}>
+              AIは資料にないことを書いたり、意味を変えたりすることがあります。行動の前に、上の原文を確かめてください。
             </Text>
           )}
         </View>
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   bullet: { fontSize: font.body, lineHeight: 28, fontWeight: '700' },
   body: { fontSize: font.body, lineHeight: 28, flexShrink: 1 },
   small: { fontSize: font.small },
-  caption: { fontSize: font.caption, lineHeight: 18 },
+  caption: { fontSize: font.caption, lineHeight: 21 },
   extra: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 6 },
   extraSource: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', minHeight: 44 },
   aiButton: {
@@ -392,8 +392,9 @@ const styles = StyleSheet.create({
   aiButtonText: { fontSize: 16, fontWeight: '700' },
   aiWaiting: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  aiLabelText: { fontSize: 13, fontWeight: '700' },
-  cite: { fontSize: 12, fontWeight: '700' },
+  aiLabelText: { fontSize: 15, fontWeight: '700' },
+  cite: { fontSize: 14, fontWeight: '700' },
+  warn: { fontSize: 15, lineHeight: 23, fontWeight: '600' },
   list: { borderRadius: 14, overflow: 'hidden' },
   listRow: { minHeight: minTouch, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   listText: { fontSize: 16, flexShrink: 1 },

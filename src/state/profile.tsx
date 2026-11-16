@@ -1,5 +1,6 @@
 // わたしの情報：登山前に入れておき、通報のときに読み上げる。端末の中だけに保存する。
-import { useCallback, useEffect, useState } from 'react';
+// アプリ全体で共有し、保存したらホームや救助画面にすぐ反映する。
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type Profile = {
@@ -22,7 +23,12 @@ export const emptyProfile: Profile = {
   returnTime: '',
 };
 
-export const profileFields: { key: keyof Profile; label: string; placeholder: string; keyboard?: 'phone-pad' | 'number-pad' }[] = [
+export const profileFields: {
+  key: keyof Profile;
+  label: string;
+  placeholder: string;
+  keyboard?: 'phone-pad' | 'number-pad';
+}[] = [
   { key: 'name', label: '名前', placeholder: '山田 花子' },
   { key: 'age', label: '年齢', placeholder: '34', keyboard: 'number-pad' },
   { key: 'medical', label: '持病・アレルギー・飲んでいる薬', placeholder: 'なし' },
@@ -34,7 +40,10 @@ export const profileFields: { key: keyof Profile; label: string; placeholder: st
 
 const KEY = 'profile';
 
-export function useProfile() {
+type Ctx = { profile: Profile; save: (p: Profile) => Promise<void>; loaded: boolean; filled: boolean };
+const ProfileCtx = createContext<Ctx | null>(null);
+
+export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile>(emptyProfile);
   const [loaded, setLoaded] = useState(false);
 
@@ -50,10 +59,17 @@ export function useProfile() {
     try {
       await AsyncStorage.setItem(KEY, JSON.stringify(p));
     } catch {
-      // 保存できなくても、この画面の間は使える
+      // 保存できなくても、アプリを閉じるまでは使える
     }
   }, []);
 
   const filled = Object.values(profile).some((v) => v.trim() !== '');
-  return { profile, save, loaded, filled };
+  const value = useMemo(() => ({ profile, save, loaded, filled }), [profile, save, loaded, filled]);
+  return <ProfileCtx.Provider value={value}>{children}</ProfileCtx.Provider>;
+}
+
+export function useProfile() {
+  const v = useContext(ProfileCtx);
+  if (!v) throw new Error('ProfileProvider の外です');
+  return v;
 }

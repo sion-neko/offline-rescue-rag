@@ -32,7 +32,7 @@ export default function Home() {
             <Text style={[styles.title, { color: t.text }]} accessibilityRole="header">
               山の手引き
             </Text>
-            <Text style={[styles.subtitle, { color: t.textMuted }]}>
+            <Text style={[styles.subtitle, { color: t.textSub }]}>
               圏外でも使える・マニュアル{ragIndex.chunks.length}項目
             </Text>
           </View>
@@ -78,16 +78,20 @@ export default function Home() {
           </View>
         </View>
 
-        {loaded && !filled && (
+        {loaded && (
           <PressableCard
             onPress={() => router.push('/profile')}
-            accessibilityLabel="登山の前に、わたしの情報を入れておく"
+            accessibilityLabel={filled ? 'わたしの情報（入力済み）' : '登山の前に、わたしの情報を入れておく'}
             testID="profile-prompt"
             style={[styles.prepare, { borderColor: t.border }]}
           >
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={[styles.prepareTitle, { color: t.text }]}>登山の前に、わたしの情報を入力</Text>
-              <Text style={[styles.prepareText, { color: t.textMuted }]}>名前・持病・緊急連絡先・ルート。通報のときに読み上げられます</Text>
+              <Text style={[styles.prepareTitle, { color: t.text }]}>
+                {filled ? 'わたしの情報（入力済み）' : '登山の前に、わたしの情報を入力'}
+              </Text>
+              <Text style={[styles.prepareText, { color: t.textSub }]}>
+                {filled ? '通報のときに読み上げる内容。今日のルートも更新できます' : '名前・持病・緊急連絡先・ルート。通報のときに読み上げられます'}
+              </Text>
             </View>
             <ChevronIcon color={t.textMuted} />
           </PressableCard>
@@ -147,7 +151,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 24, gap: 22, maxWidth: 640, width: '100%', alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: { fontSize: font.title, fontWeight: '700' },
-  subtitle: { fontSize: 13, marginTop: 4 },
+  subtitle: { fontSize: 15, marginTop: 4 },
   themeButton: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   themeText: { fontSize: 14, fontWeight: '600' },
   loading: { fontSize: font.small, marginTop: -10 },
@@ -171,7 +175,7 @@ const styles = StyleSheet.create({
   recentText: { fontSize: 16, flex: 1 },
   prepare: { borderWidth: 1, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
   prepareTitle: { fontSize: 16, fontWeight: '700' },
-  prepareText: { fontSize: 13, lineHeight: 19 },
+  prepareText: { fontSize: 15, lineHeight: 22 },
   footer: {
     flexDirection: 'row',
     gap: 10,

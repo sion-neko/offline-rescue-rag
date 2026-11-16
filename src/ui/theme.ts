@@ -62,8 +62,8 @@ export const font = {
   title: 26,
   heading: 19,
   body: 17,
-  small: 14,
-  caption: 12,
+  small: 15,
+  caption: 14,
 };
 
 /** 押しやすさの最小サイズ（Apple のガイドラインは 44pt。緊急時を考えて少し大きめ） */

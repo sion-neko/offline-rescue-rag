@@ -30,7 +30,7 @@ export default function ProfileScreen() {
   const onSave = async () => {
     await save(draft);
     setSaved(true);
-    if (router.canGoBack()) router.back();
+    setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/')), 700);
   };
 
   return (

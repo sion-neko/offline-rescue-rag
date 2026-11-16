@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useTheme } from '../state/app';
+import { ProfileProvider } from '../state/profile';
 import { GlossaryProvider } from '../ui/glossary';
 
 function ThemedStack() {
@@ -18,7 +19,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <ThemedStack />
+        <ProfileProvider>
+          <ThemedStack />
+        </ProfileProvider>
       </AppProvider>
     </SafeAreaProvider>
   );
