@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getChunk } from '../../rag/rag';
 import { useApp } from '../../state/app';
-import { GlossaryText } from '../../ui/glossary';
+import { GlossaryChips, GlossaryText } from '../../ui/glossary';
 import { ChevronIcon } from '../../ui/icons';
 import { SectionLabel, TopBar } from '../../ui/parts';
 import { font, minTouch } from '../../ui/theme';
@@ -43,6 +43,7 @@ export default function Section() {
             </View>
           ))}
         </View>
+        <GlossaryChips texts={chunk.sentences} />
         <Text style={[styles.caption, { color: t.textMuted }]}>出典：山の安全マニュアル（検証用の仮データ）</Text>
 
         {chunk.related.length > 0 && (

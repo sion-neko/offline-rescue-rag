@@ -84,6 +84,40 @@ export function splitByGlossary(text: string, used = new Set<string>()): Part[] 
   return parts;
 }
 
+/** 文章の中に出てくる用語（重複なし、出てきた順） */
+export function termsIn(texts: string[]): Glossary[] {
+  const used = new Set<string>();
+  const out: Glossary[] = [];
+  for (const text of texts) {
+    for (const p of splitByGlossary(text, used)) if (p.term) out.push(p.term);
+  }
+  return out;
+}
+
+/** 用語のチップ。文中の用語は小さくて押しにくいので、押しやすい大きさでも並べる。 */
+export function GlossaryChips({ texts }: { texts: string[] }) {
+  const t = useTheme();
+  const { open } = useGlossary();
+  const terms = termsIn(texts);
+  if (!terms.length) return null;
+  return (
+    <View style={styles.chips} testID="glossary-chips">
+      <Text style={[styles.chipsLabel, { color: t.textMuted }]}>用語</Text>
+      {terms.map((g) => (
+        <Pressable
+          key={g.term}
+          onPress={() => open(g)}
+          accessibilityRole="button"
+          accessibilityLabel={`用語「${g.term}」の説明`}
+          style={({ pressed }) => [styles.chip, { borderColor: t.border, opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Text style={[styles.chipText, { color: t.accent }]}>{g.term}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 /** 用語に下線を引いた文章。used を渡すと、複数の段落で同じ用語に何度も下線を引かない。 */
 export function GlossaryText({
   text,
@@ -147,4 +181,8 @@ const styles = StyleSheet.create({
   close: { width: minTouch - 4, height: minTouch - 4, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   term: { fontSize: 24, fontWeight: '700' },
   body: { fontSize: font.body, lineHeight: 28 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  chipsLabel: { fontSize: font.caption, fontWeight: '700', marginRight: 2 },
+  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, justifyContent: 'center' },
+  chipText: { fontSize: 15, fontWeight: '600' },
 });

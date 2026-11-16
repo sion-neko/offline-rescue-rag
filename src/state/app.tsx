@@ -17,7 +17,10 @@ export type ModelStatus = {
   llmReady: boolean;
   /** 読み込み中のモデルの進み具合（0〜1） */
   progress: number;
-  error: string | null;
+  /** 検索の準備に失敗した（目次と通報は使える） */
+  searchError: string | null;
+  /** AI の準備に失敗した（検索は使える） */
+  llmError: string | null;
   searchReadyMs: number | null;
   llmReadyMs: number | null;
 };
@@ -64,7 +67,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     searchReady: false,
     llmReady: false,
     progress: 0,
-    error: null,
+    searchError: null,
+    llmError: null,
     searchReadyMs: null,
     llmReadyMs: null,
   });
@@ -90,14 +94,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const searchReadyMs = Date.now() - t0;
         log(`検索の準備完了 ${searchReadyMs}ms`);
         setStatus((s) => ({ ...s, searchReady: true, progress: 0, searchReadyMs }));
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        log(`検索の準備エラー: ${message}`);
+        setStatus((s) => ({ ...s, searchError: message }));
+        return;
+      }
+      try {
         await engine.loadLlm((p) => setStatus((s) => ({ ...s, progress: p })));
         const llmReadyMs = Date.now() - t0;
         log(`LLM の準備完了 ${llmReadyMs}ms`);
         setStatus((s) => ({ ...s, llmReady: true, progress: 1, llmReadyMs }));
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        log(`読み込みエラー: ${message}`);
-        setStatus((s) => ({ ...s, error: message }));
+        log(`LLM の準備エラー: ${message}`);
+        setStatus((s) => ({ ...s, llmError: message }));
       }
     })();
   }, []);

@@ -41,7 +41,8 @@ export default function About() {
             <Text style={[styles.mono, { color: t.textSub }]}>
               engine={engine.name} store={store.name}{'\n'}
               検索の準備 {status.searchReadyMs ?? '-'}ms／AIの準備 {status.llmReadyMs ?? '-'}ms
-              {status.error ? `\nerror=${status.error}` : ''}
+              {status.searchError ? `\n検索エラー=${status.searchError}` : ''}
+              {status.llmError ? `\nAIエラー=${status.llmError}` : ''}
             </Text>
             <PressableCard
               onPress={() => Clipboard.setStringAsync(getLogText())}

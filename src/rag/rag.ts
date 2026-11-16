@@ -35,6 +35,10 @@ export type SearchResult = {
   top: Hit | null;
   /** ほかの項目から「あわせて確認」する行 */
   extras: ExtraLine[];
+  /** いちばん近い項目でも、関係が薄いかもしれない（点数が weakScore 未満） */
+  weak: boolean;
+  /** 「助けて」「救助」など、すぐ通報したほうがよさそうな言葉が入っている */
+  urgent: boolean;
   timings: { embedMs: number; searchMs: number };
 };
 
@@ -56,7 +60,9 @@ export async function search(question: string, engine: Engine, store: VectorStor
       .sort((a, b) => b.score - a.score)
       .slice(0, config.extraMax);
   }
-  return { question, hits, used, top, extras, timings: { embedMs: t1 - t0, searchMs: Date.now() - t1 } };
+  const weak = !!top && top.score < config.weakScore;
+  const urgent = config.emergencyWords.some((w) => question.includes(w));
+  return { question, hits, used, top, extras, weak, urgent, timings: { embedMs: t1 - t0, searchMs: Date.now() - t1 } };
 }
 
 export type Citation = { chunk: Chunk; lineIndex: number; score: number };

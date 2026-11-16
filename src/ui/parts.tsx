@@ -56,10 +56,10 @@ export function EmergencyIconButton() {
       testID="emergency-icon"
       style={({ pressed }) => [
         styles.emergencyIcon,
-        { backgroundColor: t.dangerSoft, opacity: pressed ? 0.6 : 1 },
+        { backgroundColor: t.danger, opacity: pressed ? 0.6 : 1 },
       ]}
     >
-      <PhoneIcon size={20} color={t.danger} />
+      <PhoneIcon size={20} color={t.dangerText} />
     </Pressable>
   );
 }

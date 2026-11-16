@@ -21,11 +21,12 @@ type LocState =
   | { kind: 'denied' }
   | { kind: 'error'; message: string };
 
+// 指令員が最初に聞くのは「場所」と「何が起きたか」なので、その順に並べる
 const CHECKS = [
-  '名前と年齢、持病',
   'いる場所（上の緯度経度、山の名前、登山口、最後に通った場所）',
   '何があったか、けがの有無',
   '人数',
+  '名前と年齢、持病（上の「わたしの情報」）',
   '持っているもの（水・食べ物・ライト・防寒着）',
   '電話の電池残量',
 ];
@@ -174,9 +175,18 @@ export default function Emergency() {
                 </View>
               </>
             ) : loc.kind === 'denied' ? (
-              <Text style={[styles.sub, { color: t.textSub }]}>
-                位置情報が許可されていません。設定アプリで許可するか、iPhoneの「コンパス」アプリで北緯・東経を確認できます。
-              </Text>
+              <>
+                <Text style={[styles.sub, { color: t.textSub }]}>
+                  位置情報が許可されていません。設定で許可するか、iPhoneの「コンパス」アプリで北緯・東経を確認できます。
+                </Text>
+                <PressableCard
+                  onPress={() => Linking.openSettings()}
+                  accessibilityLabel="設定を開いて位置情報を許可する"
+                  style={[styles.smallButton, { backgroundColor: t.surface }]}
+                >
+                  <Text style={[styles.smallButtonText, { color: t.text }]}>設定を開く</Text>
+                </PressableCard>
+              </>
             ) : loc.kind === 'error' ? (
               <Text style={[styles.sub, { color: t.textSub }]}>
                 現在地を測れませんでした。空が開けた場所で「もう一度測る」を押すか、「コンパス」アプリで確認できます。
@@ -184,7 +194,7 @@ export default function Emergency() {
             ) : (
               <Text style={[styles.sub, { color: t.textSub }]}>GPSで測っています。圏外でも測れます…</Text>
             )}
-            {!fix && loc.kind !== 'locating' && loc.kind !== 'idle' && (
+            {!fix && loc.kind === 'error' && (
               <PressableCard onPress={locate} accessibilityLabel="もう一度測る" style={[styles.smallButton, { backgroundColor: t.surface }]}>
                 <Text style={[styles.smallButtonText, { color: t.text }]}>もう一度測る</Text>
               </PressableCard>
@@ -262,12 +272,12 @@ export default function Emergency() {
             <Text style={[styles.sub, { color: t.textSub }]}>
               ・iPhone 14以降は、圏外で110番に発信すると「衛星経由の緊急SOS」に切り替えられることがある。空が開けた場所で、画面の指示に従う。
             </Text>
-            <Text style={[styles.sub, { color: t.textSub }]}>・通話がつながらなくても、SMSは送れることがある。</Text>
+            <Text style={[styles.sub, { color: t.textSub }]}>・通話がつながらなくても、家族や知人へのSMSは届くことがある。上の「コピー」で現在地を送る。</Text>
             <Text style={[styles.sub, { color: t.textSub }]}>・道が分からないまま、電波を探して歩き回らない。</Text>
           </View>
         </View>
 
-        {batteryPct != null && (
+        {batteryPct != null && batteryPct <= 20 && (
           <View style={[styles.row, { opacity: 0.9 }]}>
             <BatteryIcon color={batteryPct <= 20 ? t.danger : t.textMuted} />
             <Text style={[styles.sub, { color: batteryPct <= 20 ? t.danger : t.textMuted }]}>

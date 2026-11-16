@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getChunk, search, summarize, type SearchResult, type SummaryResult } from '../rag/rag';
 import { log } from '../log';
 import { useApp } from '../state/app';
-import { GlossaryText } from '../ui/glossary';
+import { GlossaryChips, GlossaryText } from '../ui/glossary';
 import { BookIcon, ChevronIcon, PhoneIcon, SparkIcon } from '../ui/icons';
 import { PressableCard, SectionLabel, TopBar } from '../ui/parts';
 import { font, minTouch } from '../ui/theme';
@@ -81,12 +81,24 @@ function ResultBody({ q }: { q: string }) {
     <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]} edges={['top', 'left', 'right']}>
       <TopBar value={input} onChangeText={setInput} onSubmit={submit} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {!status.searchReady && !status.error && (
-          <Busy label="検索の準備中…" />
-        )}
+        {!status.searchReady && !status.searchError && <Busy label="検索の準備中…" />}
         {status.searchReady && !result && !error && <Busy label="資料を検索中…" />}
-        {(error || status.error) && (
-          <Text style={[styles.body, { color: t.danger }]}>検索できませんでした：{error ?? status.error}</Text>
+        {(error || status.searchError) && (
+          <Text style={[styles.body, { color: t.danger }]}>
+            検索できませんでした。目次から資料を読めます。
+          </Text>
+        )}
+
+        {result?.urgent && (
+          <PressableCard
+            onPress={() => router.push('/emergency')}
+            accessibilityLabel="救助を呼ぶ画面を開く"
+            testID="urgent-banner"
+            style={[styles.wideButton, { backgroundColor: t.danger }]}
+          >
+            <PhoneIcon color={t.dangerText} />
+            <Text style={[styles.wideButtonText, { color: t.dangerText, fontWeight: '700' }]}>救助を呼ぶ（110・119）</Text>
+          </PressableCard>
         )}
 
         {result && !result.top && <NoHit question={result.question} />}
@@ -95,6 +107,15 @@ function ResultBody({ q }: { q: string }) {
           <>
             <View style={styles.block} testID="top-result">
               <SectionLabel>いちばん近い資料</SectionLabel>
+              {result.weak && (
+                <Text style={[styles.small, { color: t.textSub }]} testID="weak-note">
+                  質問との関係が薄いかもしれません。違うときは、言葉を変えるか
+                  <Text onPress={() => router.push('/contents')} style={{ color: t.accent, fontWeight: '700' }}>
+                    {' 目次 '}
+                  </Text>
+                  から探せます。
+                </Text>
+              )}
               <View style={[styles.card, { backgroundColor: t.surfaceAlt }]}>
                 <Pressable
                   onPress={() => openSection(result.top!.chunk.id)}
@@ -114,6 +135,9 @@ function ResultBody({ q }: { q: string }) {
                   </View>
                 ))}
               </View>
+              <GlossaryChips
+                texts={[...result.top.chunk.sentences, ...result.extras.map((x) => x.chunk.sentences[x.lineIndex])]}
+              />
             </View>
 
             {result.extras.length > 0 && (
@@ -135,7 +159,14 @@ function ResultBody({ q }: { q: string }) {
               </View>
             )}
 
-            <SummaryBlock state={summary} llmReady={status.llmReady} progress={status.progress} onRun={runSummary} onCite={openSection} />
+            <SummaryBlock
+              state={summary}
+              llmReady={status.llmReady}
+              llmFailed={!!status.llmError}
+              progress={status.progress}
+              onRun={runSummary}
+              onCite={openSection}
+            />
 
             {result.top.chunk.related.length > 0 && (
               <View style={styles.block} testID="related">
@@ -187,12 +218,14 @@ function Busy({ label }: { label: string }) {
 function SummaryBlock({
   state,
   llmReady,
+  llmFailed,
   progress,
   onRun,
   onCite,
 }: {
   state: SummaryState;
   llmReady: boolean;
+  llmFailed: boolean;
   progress: number;
   onRun: () => void;
   onCite: (id: string, line: number) => void;
@@ -200,18 +233,28 @@ function SummaryBlock({
   const { theme: t } = useApp();
   return (
     <View style={styles.block} testID="summary">
-      {state.kind === 'idle' && (
+      {state.kind === 'idle' && llmReady && (
         <PressableCard
           onPress={onRun}
           accessibilityLabel="AIで短くまとめる"
           testID="summary-button"
-          style={[styles.aiButton, { borderColor: t.border, opacity: llmReady ? 1 : 0.5 }]}
+          style={[styles.aiButton, { borderColor: t.border }]}
         >
           <SparkIcon color={t.accent} />
-          <Text style={[styles.aiButtonText, { color: t.text }]}>
-            {llmReady ? 'AIで短くまとめる' : progress > 0 && progress < 1 ? `AIを準備中 ${Math.round(progress * 100)}%` : 'AIを準備中…'}
-          </Text>
+          <Text style={[styles.aiButtonText, { color: t.text }]}>AIで短くまとめる</Text>
         </PressableCard>
+      )}
+      {state.kind === 'idle' && !llmReady && (
+        <View style={styles.aiWaiting} testID="summary-waiting">
+          <SparkIcon color={t.textMuted} />
+          <Text style={[styles.small, { color: t.textMuted }]}>
+            {llmFailed
+              ? 'AIのまとめは使えません。上の資料はそのまま読めます'
+              : progress > 0 && progress < 1
+                ? `AIのまとめを準備中（${Math.round(progress * 100)}%）`
+                : 'AIのまとめを準備中'}
+          </Text>
+        </View>
       )}
       {state.kind !== 'idle' && (
         <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, borderWidth: 1 }]}>
@@ -224,7 +267,9 @@ function SummaryBlock({
           {state.kind === 'running' && (
             <Text style={[styles.body, { color: t.textSub }]}>{state.text || '資料を読んでいます…'}</Text>
           )}
-          {state.kind === 'error' && <Text style={[styles.body, { color: t.danger }]}>作れませんでした：{state.message}</Text>}
+          {state.kind === 'error' && (
+            <Text style={[styles.body, { color: t.textSub }]}>AIのまとめを作れませんでした。上の資料はそのまま読めます。</Text>
+          )}
           {state.kind === 'done' &&
             state.result.lines.map((l, i) => (
               <View key={i} style={styles.point}>
@@ -298,7 +343,7 @@ const styles = StyleSheet.create({
   small: { fontSize: font.small },
   caption: { fontSize: font.caption, lineHeight: 18 },
   extra: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 6 },
-  extraSource: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', minHeight: 32 },
+  extraSource: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', minHeight: 44 },
   aiButton: {
     minHeight: 52,
     borderRadius: 16,
@@ -309,6 +354,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   aiButtonText: { fontSize: 16, fontWeight: '700' },
+  aiWaiting: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   aiLabelText: { fontSize: 13, fontWeight: '700' },
   cite: { fontSize: 12, fontWeight: '700' },

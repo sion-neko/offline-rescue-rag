@@ -3,7 +3,7 @@
   "queryPrefix": "task: search result | query: ",
   "passagePrefix": "title: {title} | text: ",
   "topK": 3,
-  "minScore": 0.45,
+  "minScore": 0.42,
   "systemPrompt": "あなたは山で遭難した人を助ける手引きです。\n下の「資料」から、質問に関係する行動だけを選び、日本語の短い箇条書き（「・」で始める）にしてください。\n資料に書かれている行動だけを書き、言いかえや付け足しをしないでください。\n大事な行動から順に、最大5項目までにしてください。\n箇条書きのあとには何も書かないでください。",
   "contextTemplate": "【{title}】\n{text}",
   "userTemplate": "資料:\n{context}\n\n質問: {question}",
@@ -19,5 +19,19 @@
   "selectUserTemplate": "質問: {question}\n\n文:\n{sentences}\n\n質問「{question}」に大事な文の番号:",
   "selectMax": 5,
   "extraMinScore": 0.55,
-  "extraMax": 2
+  "extraMax": 2,
+  "weakScore": 0.52,
+  "emergencyWords": [
+    "助けて",
+    "たすけて",
+    "救助",
+    "通報",
+    "110",
+    "119",
+    "SOS",
+    "遭難",
+    "動けない",
+    "死にそう",
+    "やばい"
+  ]
 }
