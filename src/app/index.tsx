@@ -35,6 +35,9 @@ export default function Home() {
             <Text style={[styles.subtitle, { color: t.textSub }]}>
               圏外でも使える・マニュアル{ragIndex.chunks.length}項目
             </Text>
+            <Pressable onPress={() => router.push('/about')} accessibilityRole="button" style={styles.aboutLink}>
+              <Text style={[styles.aboutText, { color: t.accent }]}>このアプリについて</Text>
+            </Pressable>
           </View>
           <Pressable
             onPress={() => setThemeMode(themeMode === 'system' ? nextMode : nextMode)}
@@ -90,7 +93,7 @@ export default function Home() {
                 {filled ? 'わたしの情報（入力済み）' : '登山の前に、わたしの情報を入力'}
               </Text>
               <Text style={[styles.prepareText, { color: t.textSub }]}>
-                {filled ? '通報のときに読み上げる内容。今日のルートも更新できます' : '名前・持病・緊急連絡先・ルート。通報のときに読み上げられます'}
+                {filled ? '通報のときに伝える内容。登る山とルートも更新できます' : '名前・持病・緊急連絡先・ルート。通報のときに、画面を見ながら伝えられます'}
               </Text>
             </View>
             <ChevronIcon color={t.textMuted} />
@@ -152,6 +155,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: { fontSize: font.title, fontWeight: '700' },
   subtitle: { fontSize: 15, marginTop: 4 },
+  aboutLink: { alignSelf: 'flex-start', minHeight: 36, justifyContent: 'center' },
+  aboutText: { fontSize: 15, fontWeight: '600' },
   themeButton: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   themeText: { fontSize: 14, fontWeight: '600' },
   loading: { fontSize: font.small, marginTop: -10 },

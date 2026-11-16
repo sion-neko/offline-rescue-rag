@@ -30,7 +30,7 @@ export default function ProfileScreen() {
   const onSave = async () => {
     await save(draft);
     setSaved(true);
-    setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/')), 700);
+    setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/')), 1200);
   };
 
   return (
@@ -43,7 +43,7 @@ export default function ProfileScreen() {
           </Text>
           {profileFields.map((f) => (
             <View key={f.key} style={styles.field}>
-              <Text style={[styles.label, { color: t.textMuted }]} nativeID={`label-${f.key}`}>
+              <Text style={[styles.label, { color: t.textSub }]} nativeID={`label-${f.key}`}>
                 {f.label}
               </Text>
               <TextInput
@@ -52,10 +52,11 @@ export default function ProfileScreen() {
                 placeholder={f.placeholder}
                 placeholderTextColor={t.textMuted}
                 keyboardType={f.keyboard ?? 'default'}
+                multiline={f.multiline}
                 accessibilityLabel={f.label}
                 accessibilityLabelledBy={`label-${f.key}`}
                 testID={`profile-${f.key}`}
-                style={[styles.input, { color: t.text, backgroundColor: t.surfaceAlt }]}
+                style={[styles.input, f.multiline && styles.multiline, { color: t.text, backgroundColor: t.surfaceAlt }]}
               />
             </View>
           ))}
@@ -67,7 +68,7 @@ export default function ProfileScreen() {
             testID="profile-save"
             style={[styles.save, { backgroundColor: t.accent }]}
           >
-            <Text style={[styles.saveText, { color: t.accentText }]}>{saved ? '保存した' : '保存'}</Text>
+            <Text style={[styles.saveText, { color: t.accentText }]}>{saved ? '保存しました' : '保存'}</Text>
           </PressableCard>
         </View>
       </KeyboardAvoidingView>
@@ -82,6 +83,7 @@ const styles = StyleSheet.create({
   field: { gap: 6 },
   label: { fontSize: font.small, fontWeight: '700' },
   input: { minHeight: 48, borderRadius: 12, paddingHorizontal: 14, fontSize: 17 },
+  multiline: { minHeight: 88, paddingTop: 12, paddingBottom: 12, textAlignVertical: 'top' },
   footer: { padding: 16, borderTopWidth: StyleSheet.hairlineWidth },
   save: { minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: 17, fontWeight: '700' },

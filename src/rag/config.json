@@ -20,7 +20,7 @@
   "selectMax": 5,
   "extraMinScore": 0.55,
   "extraMax": 2,
-  "weakScore": 0.52,
+  "weakScore": 0.58,
   "emergencyWords": [
     "助けて",
     "たすけて",

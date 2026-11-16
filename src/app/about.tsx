@@ -9,7 +9,7 @@ import { PressableCard, SectionLabel, TopBar } from '../ui/parts';
 import { font } from '../ui/theme';
 
 export default function About() {
-  const { theme: t, engine, store, status } = useApp();
+  const { theme: t, engine, store, status, setThemeMode } = useApp();
   const [logs, setLogs] = useState<string[]>([]);
   useEffect(() => subscribeLog(setLogs), []);
 
@@ -29,6 +29,17 @@ export default function About() {
         </View>
 
         <View style={styles.block}>
+          <SectionLabel>表示</SectionLabel>
+          <PressableCard
+            onPress={() => setThemeMode(t.dark ? 'light' : 'dark')}
+            accessibilityLabel={t.dark ? '通常表示にする' : '夜・節電の表示にする'}
+            style={[styles.toggle, { borderColor: t.border }]}
+          >
+            <Text style={[styles.body, { color: t.text }]}>{t.dark ? '通常表示にする' : '夜・節電の表示にする（黒い背景で電池を節約）'}</Text>
+          </PressableCard>
+        </View>
+
+        <View style={styles.block}>
           <SectionLabel>使っているAI</SectionLabel>
           <Text style={[styles.body, { color: t.textSub }]}>
             要約：LFM2.5-1.2B-JP（Liquid AI、LFM Open License v1.0）{'\n'}検索：EmbeddingGemma-300m（Google、Gemma 利用規約）
@@ -40,7 +51,7 @@ export default function About() {
           <View style={[styles.card, { backgroundColor: t.surfaceAlt }]} testID="debug">
             <Text style={[styles.mono, { color: t.textSub }]}>
               engine={engine.name} store={store.name}{'\n'}
-              検索の準備 {status.searchReadyMs ?? '-'}ms／AIの準備 {status.llmReadyMs ?? '-'}ms
+              検索の準備 {status.searchReadyMs != null ? `${status.searchReadyMs}ms` : '準備中'}／AIの準備 {status.llmReadyMs != null ? `${status.llmReadyMs}ms` : '準備中'}
               {status.searchError ? `\n検索エラー=${status.searchError}` : ''}
               {status.llmError ? `\nAIエラー=${status.llmError}` : ''}
             </Text>
@@ -68,6 +79,7 @@ const styles = StyleSheet.create({
   body: { fontSize: 16, lineHeight: 25 },
   card: { borderRadius: 14, padding: 14, gap: 8 },
   mono: { fontSize: font.caption, lineHeight: 17, fontFamily: 'Courier' },
+  toggle: { minHeight: 52, borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, justifyContent: 'center' },
   button: { alignSelf: 'flex-start', minHeight: 40, paddingHorizontal: 12, borderRadius: 10, justifyContent: 'center' },
   buttonText: { fontSize: 14, fontWeight: '700' },
 });

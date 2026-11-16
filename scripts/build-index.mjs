@@ -39,6 +39,16 @@ for (const file of readdirSync(root + "data/manual").filter((f) => f.endsWith(".
   }
 }
 
+// 本文の中に、ほかの資料の題名がそのまま入っていたら警告する
+// （題名を一括置換したときに、本文まで書き換えてしまった事故を防ぐ）
+for (const c of chunks) {
+  for (const s of c.sentences) {
+    for (const o of chunks) {
+      if (o !== c && s.includes(o.title)) console.warn(`警告：「${c.title}」の本文に題名「${o.title}」が入っています → ${s}`);
+    }
+  }
+}
+
 // --- 用語集 ---
 const glossary = [];
 for (const part of stripComments(readFileSync(root + "data/glossary.md", "utf8")).split(/^## /m).slice(1)) {

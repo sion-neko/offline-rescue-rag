@@ -2,7 +2,8 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { contents } from '../rag/rag';
+import { contents, glossary } from '../rag/rag';
+import { useGlossary } from '../ui/glossary';
 import { useApp } from '../state/app';
 import { ChevronIcon } from '../ui/icons';
 import { SectionLabel, TopBar } from '../ui/parts';
@@ -10,6 +11,7 @@ import { minTouch } from '../ui/theme';
 
 export default function Contents() {
   const { theme: t } = useApp();
+  const { open } = useGlossary();
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]} edges={['top', 'left', 'right']}>
       <TopBar title="目次" />
@@ -36,6 +38,22 @@ export default function Contents() {
             </View>
           </View>
         ))}
+        <View style={styles.block}>
+          <SectionLabel>用語</SectionLabel>
+          <View style={styles.terms}>
+            {glossary().map((g) => (
+              <Pressable
+                key={g.term}
+                onPress={() => open(g)}
+                accessibilityRole="button"
+                accessibilityLabel={`用語「${g.term}」の説明`}
+                style={({ pressed }) => [styles.term, { borderColor: t.border, opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Text style={[styles.termText, { color: t.accent }]}>{g.term}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
         <Pressable onPress={() => router.push('/about')} accessibilityRole="button" style={styles.about}>
           <Text style={[styles.aboutText, { color: t.textMuted }]}>このアプリについて</Text>
         </Pressable>
@@ -51,6 +69,9 @@ const styles = StyleSheet.create({
   list: { borderRadius: 14, overflow: 'hidden' },
   row: { minHeight: minTouch + 4, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   rowText: { fontSize: 17, flexShrink: 1 },
+  terms: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  term: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, justifyContent: 'center' },
+  termText: { fontSize: 16, fontWeight: '700' },
   about: { alignSelf: 'center', minHeight: minTouch, justifyContent: 'center', paddingHorizontal: 12 },
-  aboutText: { fontSize: 14, textDecorationLine: 'underline' },
+  aboutText: { fontSize: 15, textDecorationLine: 'underline' },
 });

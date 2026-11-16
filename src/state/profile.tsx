@@ -28,13 +28,14 @@ export const profileFields: {
   label: string;
   placeholder: string;
   keyboard?: 'phone-pad' | 'number-pad';
+  multiline?: boolean;
 }[] = [
   { key: 'name', label: '名前', placeholder: '山田 花子' },
   { key: 'age', label: '年齢', placeholder: '34', keyboard: 'number-pad' },
   { key: 'medical', label: '持病・アレルギー・飲んでいる薬', placeholder: 'なし' },
   { key: 'contactName', label: '緊急連絡先（名前・続柄）', placeholder: '山田 太郎（夫）' },
   { key: 'contactPhone', label: '緊急連絡先の電話番号', placeholder: '090-0000-0000', keyboard: 'phone-pad' },
-  { key: 'route', label: '今日の山とルート', placeholder: '高尾山　稲荷山コースで登り、6号路で下山' },
+  { key: 'route', label: '登る山とルート', placeholder: '高尾山　稲荷山コースで登り、6号路で下山', multiline: true },
   { key: 'returnTime', label: '下山の予定時刻', placeholder: '16:00' },
 ];
 

@@ -296,22 +296,26 @@ function SummaryBlock({
             state.result.lines.map((l, i) => (
               <View key={i} style={styles.point}>
                 <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
-                <Text style={[styles.body, { color: l.citation ? t.text : t.textMuted, flex: 1 }]}>
-                  {l.text}
-                  {'  '}
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={[styles.body, { color: l.citation ? t.text : t.textMuted }]}>{l.text}</Text>
                   {l.citation ? (
-                    <Text
+                    <Pressable
                       onPress={() => onCite(l.citation!.chunk.id, l.citation!.lineIndex)}
                       accessibilityRole="link"
                       accessibilityLabel={`出典：${l.citation.chunk.title}`}
-                      style={[styles.cite, { color: t.accent, backgroundColor: t.accentSoft }]}
+                      style={({ pressed }) => [styles.citeChip, { backgroundColor: t.accentSoft, opacity: pressed ? 0.6 : 1 }]}
                     >
-                      {` ${l.citation.chunk.title} `}
-                    </Text>
+                      <Text style={[styles.cite, { color: t.accent }]} numberOfLines={1}>
+                        出典：{l.citation.chunk.title}
+                      </Text>
+                      <ChevronIcon size={12} color={t.accent} />
+                    </Pressable>
                   ) : (
-                    <Text style={[styles.cite, { color: t.textMuted, backgroundColor: t.surfaceAlt }]}> 原文で確認できず </Text>
+                    <View style={[styles.citeChip, { backgroundColor: t.surfaceAlt }]}>
+                      <Text style={[styles.cite, { color: t.textSub }]}>原文で確認できず</Text>
+                    </View>
                   )}
-                </Text>
+                </View>
               </View>
             ))}
           {state.kind === 'done' && (
@@ -393,7 +397,8 @@ const styles = StyleSheet.create({
   aiWaiting: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   aiLabelText: { fontSize: 15, fontWeight: '700' },
-  cite: { fontSize: 14, fontWeight: '700' },
+  cite: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
+  citeChip: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36, paddingHorizontal: 10, borderRadius: 10, maxWidth: '100%' },
   warn: { fontSize: 15, lineHeight: 23, fontWeight: '600' },
   list: { borderRadius: 14, overflow: 'hidden' },
   listRow: { minHeight: minTouch, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

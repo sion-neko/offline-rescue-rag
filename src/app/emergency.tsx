@@ -155,6 +155,7 @@ export default function Emergency() {
 
         <View style={styles.block}>
           <SectionLabel>電話で言うこと（この順に）</SectionLabel>
+          <Text style={[styles.hint, { color: t.textSub }]}>言い終えた項目を押すと、印が付きます</Text>
           <View style={[styles.list, { backgroundColor: t.surfaceAlt }]} testID="call-script">
             <Step n={1} title="いる場所" checked={checked[0]} onToggle={() => toggle(0)} t={t} first>
               {fix ? (
@@ -175,7 +176,7 @@ export default function Emergency() {
                     {loc.kind === 'locating' ? '（更新中…）' : ''}
                   </Text>
                   <View style={styles.buttons}>
-                    <SmallButton onPress={copy} label={copied ? 'コピーした' : 'コピー'} t={t}>
+                    <SmallButton onPress={copy} label={copied ? 'コピー済み' : 'コピー'} t={t}>
                       {copied ? <CheckIcon color={t.accent} /> : <CopyIcon color={t.text} />}
                     </SmallButton>
                     <SmallButton onPress={locate} label="もう一度測る" t={t} />
@@ -317,13 +318,12 @@ function Step({
             { backgroundColor: checked ? t.accent : 'transparent', borderColor: checked ? t.accent : t.textSub },
           ]}
         >
-          {checked ? (
-            <CheckIcon size={16} color={t.accentText} strokeWidth={3} />
-          ) : (
-            <Text style={[styles.numText, { color: t.text }]}>{n}</Text>
-          )}
+          <Text style={[styles.numText, { color: checked ? t.accentText : t.text }]}>{n}</Text>
         </View>
-        <Text style={[styles.stepTitle, { color: checked ? t.textSub : t.text }]}>{title}</Text>
+        <Text style={[styles.stepTitle, { color: checked ? t.textSub : t.text, textDecorationLine: checked ? 'line-through' : 'none' }]}>
+          {title}
+        </Text>
+        {checked && <CheckIcon size={18} color={t.accent} />}
       </Pressable>
       {children ? <View style={styles.stepBody}>{children}</View> : null}
     </View>
@@ -364,6 +364,6 @@ const styles = StyleSheet.create({
   hint: { fontSize: 15, lineHeight: 23 },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   card: { borderRadius: 16, padding: 16, gap: 8 },
-  smallButton: { minHeight: 44, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  smallButton: { minHeight: 44, minWidth: 112, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   smallButtonText: { fontSize: 16, fontWeight: '600' },
 });
