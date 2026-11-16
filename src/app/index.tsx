@@ -6,13 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { situations } from '../data/situations';
 import { ragIndex } from '../rag/rag';
 import { useApp } from '../state/app';
-import { BookIcon, ClockIcon, MoonIcon, PhoneIcon, SunIcon } from '../ui/icons';
+import { useProfile } from '../state/profile';
+import { BookIcon, ChevronIcon, ClockIcon, MoonIcon, PhoneIcon, SunIcon } from '../ui/icons';
 import { PressableCard, SearchField, SectionLabel } from '../ui/parts';
 import { font, minTouch } from '../ui/theme';
 
 export default function Home() {
   const { theme: t, recent, clearRecent, status, themeMode, setThemeMode } = useApp();
   const [q, setQ] = useState('');
+  const { filled, loaded } = useProfile();
 
   const go = (query: string) => {
     const text = query.trim();
@@ -75,6 +77,21 @@ export default function Home() {
             ))}
           </View>
         </View>
+
+        {loaded && !filled && (
+          <PressableCard
+            onPress={() => router.push('/profile')}
+            accessibilityLabel="登山の前に、わたしの情報を入れておく"
+            testID="profile-prompt"
+            style={[styles.prepare, { borderColor: t.border }]}
+          >
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.prepareTitle, { color: t.text }]}>登山の前に、わたしの情報を入力</Text>
+              <Text style={[styles.prepareText, { color: t.textMuted }]}>名前・持病・緊急連絡先・ルート。通報のときに読み上げられます</Text>
+            </View>
+            <ChevronIcon color={t.textMuted} />
+          </PressableCard>
+        )}
 
         {recent.length > 0 && (
           <View style={styles.block}>
@@ -150,6 +167,9 @@ const styles = StyleSheet.create({
   link: { fontSize: font.small },
   recent: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
   recentText: { fontSize: 16, flex: 1 },
+  prepare: { borderWidth: 1, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  prepareTitle: { fontSize: 16, fontWeight: '700' },
+  prepareText: { fontSize: 13, lineHeight: 19 },
   footer: {
     flexDirection: 'row',
     gap: 10,

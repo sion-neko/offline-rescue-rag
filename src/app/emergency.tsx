@@ -6,7 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Clipboard from 'expo-clipboard';
 import * as Battery from 'expo-battery';
+import { router } from 'expo-router';
 import { useApp } from '../state/app';
+import { profileFields, useProfile } from '../state/profile';
 import { BatteryIcon, CheckIcon, CopyIcon, PhoneIcon, PinIcon } from '../ui/icons';
 import { PressableCard, SectionLabel, TopBar } from '../ui/parts';
 import { font, minTouch } from '../ui/theme';
@@ -50,6 +52,7 @@ function useBattery() {
 
 export default function Emergency() {
   const { theme: t } = useApp();
+  const { profile, filled } = useProfile();
   const battery = useBattery();
   const [loc, setLoc] = useState<LocState>({ kind: 'idle' });
   const [checked, setChecked] = useState<boolean[]>(CHECKS.map(() => false));
@@ -190,6 +193,33 @@ export default function Emergency() {
         </View>
 
         <View style={styles.block}>
+          <View style={styles.rowBetween}>
+            <SectionLabel>わたしの情報（読み上げる）</SectionLabel>
+            <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" hitSlop={10}>
+              <Text style={[styles.link, { color: t.accent }]}>{filled ? '編集' : '入力'}</Text>
+            </Pressable>
+          </View>
+          <View style={[styles.card, { backgroundColor: t.surfaceAlt }]} testID="profile-card">
+            {filled ? (
+              profileFields
+                .filter((f) => profile[f.key].trim())
+                .map((f) => (
+                  <View key={f.key} style={styles.profileRow}>
+                    <Text style={[styles.profileLabel, { color: t.textMuted }]}>{f.label}</Text>
+                    <Text style={[styles.profileValue, { color: t.text }]} selectable>
+                      {profile[f.key]}
+                    </Text>
+                  </View>
+                ))
+            ) : (
+              <Text style={[styles.sub, { color: t.textSub }]}>
+                名前・持病・緊急連絡先・今日のルートを入れておくと、ここに出ます。登山の前に入れておくのがおすすめです。
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.block}>
           <SectionLabel>電話で伝えること</SectionLabel>
           <View style={[styles.list, { backgroundColor: t.surfaceAlt }]}>
             {CHECKS.map((c, i) => (
@@ -273,4 +303,9 @@ const styles = StyleSheet.create({
   check: { minHeight: minTouch + 4, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
   box: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   checkText: { fontSize: 16, lineHeight: 23, flexShrink: 1 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  link: { fontSize: 15, fontWeight: '700' },
+  profileRow: { gap: 2 },
+  profileLabel: { fontSize: 12, fontWeight: '700' },
+  profileValue: { fontSize: 18, lineHeight: 26, fontWeight: '600' },
 });
