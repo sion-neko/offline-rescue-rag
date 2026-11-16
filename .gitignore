@@ -44,3 +44,6 @@ yarn-error.*
 /models/
 # web 用に node_modules からコピーする wasm
 /public/wllama/
+
+# 確認用のスクリーンショット（作業用）
+/screenshots/
