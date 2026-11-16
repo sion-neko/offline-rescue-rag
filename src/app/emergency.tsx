@@ -1,7 +1,7 @@
 // 救助を呼ぶ：110／119 への発信、現在地（緯度経度）、電池残量、通報で伝えることのチェックリスト。
 // 伝える内容は、県警の山岳遭難の案内（電池残量・場所と座標・何があったか・氏名や持病）をもとにしている。
-import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Clipboard from 'expo-clipboard';
@@ -58,6 +58,8 @@ export default function Emergency() {
   const [loc, setLoc] = useState<LocState>({ kind: 'idle' });
   const [checked, setChecked] = useState<boolean[]>(CHECKS.map(() => false));
   const [copied, setCopied] = useState(false);
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const offlineY = useRef(0);
 
   const locate = useCallback(async () => {
     try {
@@ -106,7 +108,7 @@ export default function Emergency() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]} edges={['top', 'left', 'right']}>
       <TopBar title="救助を呼ぶ" hideEmergency />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
         <View style={styles.calls}>
           <PressableCard
             onPress={() => call('110')}
@@ -136,6 +138,13 @@ export default function Emergency() {
         <Text style={[styles.note, { color: t.textSub }]}>
           山で動けないときは110番が基本。つながったら、その場を動かず、電話を切らない。
         </Text>
+        <Pressable
+          onPress={() => scrollRef.current?.scrollTo({ y: offlineY.current, animated: true })}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.offlineLink, { opacity: pressed ? 0.5 : 1 }]}
+        >
+          <Text style={[styles.link, { color: t.accent }]}>電話がつながらないとき ↓</Text>
+        </Pressable>
 
         <View style={styles.block}>
           <SectionLabel>現在地</SectionLabel>
@@ -266,8 +275,8 @@ export default function Emergency() {
           </View>
         </View>
 
-        <View style={styles.block}>
-          <SectionLabel>圏外のとき</SectionLabel>
+        <View style={styles.block} onLayout={(e) => (offlineY.current = e.nativeEvent.layout.y)}>
+          <SectionLabel>電話がつながらないとき</SectionLabel>
           <View style={[styles.card, { backgroundColor: t.surfaceAlt }]}>
             <Text style={[styles.sub, { color: t.textSub }]}>
               ・iPhone 14以降は、圏外で110番に発信すると「衛星経由の緊急SOS」に切り替えられることがある。空が開けた場所で、画面の指示に従う。
@@ -277,11 +286,11 @@ export default function Emergency() {
           </View>
         </View>
 
-        {batteryPct != null && batteryPct <= 20 && (
+        {batteryPct != null && batteryPct <= 30 && (
           <View style={[styles.row, { opacity: 0.9 }]}>
-            <BatteryIcon color={batteryPct <= 20 ? t.danger : t.textMuted} />
-            <Text style={[styles.sub, { color: batteryPct <= 20 ? t.danger : t.textMuted }]}>
-              電池 {batteryPct}%{batteryPct <= 20 ? '。画面を暗くして、必要なときだけ使う' : ''}
+            <BatteryIcon color={t.danger} />
+            <Text style={[styles.sub, { color: t.danger }]}>
+              電池 {batteryPct}%。画面を暗くして、必要なときだけ使う
             </Text>
           </View>
         )}
@@ -313,6 +322,7 @@ const styles = StyleSheet.create({
   check: { minHeight: minTouch + 4, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
   box: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   checkText: { fontSize: 16, lineHeight: 23, flexShrink: 1 },
+  offlineLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   link: { fontSize: 15, fontWeight: '700' },
   profileRow: { gap: 2 },

@@ -33,7 +33,7 @@ export default function Home() {
               山の手引き
             </Text>
             <Text style={[styles.subtitle, { color: t.textMuted }]}>
-              山の安全マニュアル {ragIndex.chunks.length}項目・圏外でも使える
+              圏外でも使える・マニュアル{ragIndex.chunks.length}項目
             </Text>
           </View>
           <Pressable

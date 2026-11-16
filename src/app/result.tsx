@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getChunk, search, summarize, type SearchResult, type SummaryResult } from '../rag/rag';
+import { getChunk, search, summarize, type ExtraLine, type SearchResult, type SummaryResult } from '../rag/rag';
 import { log } from '../log';
 import { useApp } from '../state/app';
+import { situations } from '../data/situations';
 import { GlossaryChips, GlossaryText } from '../ui/glossary';
 import { BookIcon, ChevronIcon, PhoneIcon, SparkIcon } from '../ui/icons';
 import { PressableCard, SectionLabel, TopBar } from '../ui/parts';
@@ -36,7 +37,7 @@ function ResultBody({ q }: { q: string }) {
     search(q, engine, store)
       .then((r) => {
         if (cancelled) return;
-        addRecent(q);
+        if (r.top) addRecent(q);
         log(
           `検索「${q}」 embed=${r.timings.embedMs}ms search=${r.timings.searchMs}ms ` +
             r.hits.map((h) => `${h.chunk.title}:${h.score.toFixed(3)}`).join(', '),
@@ -136,22 +137,31 @@ function ResultBody({ q }: { q: string }) {
                 ))}
               </View>
               <GlossaryChips
-                texts={[...result.top.chunk.sentences, ...result.extras.map((x) => x.chunk.sentences[x.lineIndex])]}
+                texts={[
+                  result.top.chunk.title,
+                  ...result.top.chunk.sentences,
+                  ...result.extras.map((x) => x.chunk.sentences[x.lineIndex]),
+                ]}
               />
             </View>
 
             {result.extras.length > 0 && (
               <View style={styles.block} testID="extras">
                 <SectionLabel>あわせて確認</SectionLabel>
-                {result.extras.map((x) => (
-                  <View key={`${x.chunk.id}-${x.lineIndex}`} style={[styles.extra, { borderColor: t.border }]}>
-                    <GlossaryText text={x.chunk.sentences[x.lineIndex]} used={used} style={[styles.body, { color: t.text }]} />
+                {groupExtras(result.extras).map((g) => (
+                  <View key={g.chunk.id} style={[styles.extra, { borderColor: t.border }]}>
+                    {g.lines.map((i) => (
+                      <View key={i} style={styles.point}>
+                        <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
+                        <GlossaryText text={g.chunk.sentences[i]} used={used} style={[styles.body, { color: t.text }]} />
+                      </View>
+                    ))}
                     <Pressable
-                      onPress={() => openSection(x.chunk.id, x.lineIndex)}
+                      onPress={() => openSection(g.chunk.id, g.lines[0])}
                       accessibilityRole="link"
                       style={({ pressed }) => [styles.extraSource, { opacity: pressed ? 0.5 : 1 }]}
                     >
-                      <Text style={[styles.small, { color: t.accent }]}>{x.chunk.title}</Text>
+                      <Text style={[styles.small, { color: t.accent }]}>{g.chunk.title}</Text>
                       <ChevronIcon size={12} color={t.accent} />
                     </Pressable>
                   </View>
@@ -203,6 +213,18 @@ function ResultBody({ q }: { q: string }) {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/** 「あわせて確認」の行を資料ごとにまとめる（資料の中の順に並べる） */
+function groupExtras(extras: ExtraLine[]) {
+  const groups: { chunk: ExtraLine['chunk']; lines: number[] }[] = [];
+  for (const x of extras) {
+    let g = groups.find((y) => y.chunk.id === x.chunk.id);
+    if (!g) groups.push((g = { chunk: x.chunk, lines: [] }));
+    g.lines.push(x.lineIndex);
+  }
+  groups.forEach((g) => g.lines.sort((a, b) => a - b));
+  return groups;
 }
 
 function Busy({ label }: { label: string }) {
@@ -308,7 +330,21 @@ function NoHit({ question }: { question: string }) {
   return (
     <View style={styles.block} testID="no-hit">
       <Text style={[styles.cardTitle, { color: t.text }]}>「{question}」に関係する内容は、資料に見つかりませんでした</Text>
-      <Text style={[styles.body, { color: t.textSub }]}>言葉を変えて検索するか、目次から探せます。</Text>
+      <Text style={[styles.body, { color: t.text }]}>まず立ち止まって、落ち着く。命に関わるなら110番。</Text>
+      <Text style={[styles.small, { color: t.textMuted }]}>近い状況を選ぶか、言葉を変えて検索できます。</Text>
+      <View style={styles.situations}>
+        {situations.map((s) => (
+          <PressableCard
+            key={s.label}
+            onPress={() => router.replace({ pathname: '/result', params: { q: s.query } })}
+            accessibilityLabel={s.label}
+            style={[styles.situation, { backgroundColor: t.accentSoft }]}
+          >
+            <s.Icon size={20} color={t.accent} />
+            <Text style={[styles.situationText, { color: t.text }]}>{s.label}</Text>
+          </PressableCard>
+        ))}
+      </View>
       <PressableCard
         onPress={() => router.push('/contents')}
         accessibilityLabel="目次から探す"
@@ -361,6 +397,9 @@ const styles = StyleSheet.create({
   list: { borderRadius: 14, overflow: 'hidden' },
   listRow: { minHeight: minTouch, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   listText: { fontSize: 16, flexShrink: 1 },
+  situations: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  situation: { flexBasis: '47%', flexGrow: 1, minHeight: 52, paddingHorizontal: 12, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  situationText: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
   wideButton: { minHeight: 54, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   wideButtonText: { fontSize: 16 },
 });

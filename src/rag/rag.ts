@@ -9,6 +9,7 @@
 // （scripts/eval-cite.mjs）、メインの答えは原文にしている。
 import config from './config.json';
 import indexJson from '../../assets/rag/index.json';
+import synonyms from '../../data/synonyms.json';
 import type { Engine } from '../ai/types';
 import type { Chunk, Glossary, Hit, RagIndex, VectorStore } from './types';
 import { dot, normalize } from './vector';
@@ -42,9 +43,18 @@ export type SearchResult = {
   timings: { embedMs: number; searchMs: number };
 };
 
+/** 言い換えの辞書（data/synonyms.json）で、検索用の文に言葉を足す */
+export function expandQuery(question: string): string {
+  const adds = Object.entries(synonyms.words as Record<string, string>)
+    .filter(([k]) => question.includes(k))
+    .map(([, v]) => v);
+  return adds.length ? `${question} ${[...new Set(adds.join(' ').split(' '))].join(' ')}` : question;
+}
+
 export async function search(question: string, engine: Engine, store: VectorStore): Promise<SearchResult> {
   const t0 = Date.now();
-  const qv = normalize(await engine.embed(config.queryPrefix + question));
+  const expanded = expandQuery(question);
+  const qv = normalize(await engine.embed(config.queryPrefix + expanded));
   const t1 = Date.now();
   const hits = await store.search(qv, Math.max(config.topK, 4));
   const used = hits.slice(0, config.topK).filter((h) => h.score >= config.minScore);
@@ -52,7 +62,7 @@ export async function search(question: string, engine: Engine, store: VectorStor
 
   let extras: ExtraLine[] = [];
   if (top && used.length > 1) {
-    const sv = normalize(await engine.embed(config.similarityPrefix + question));
+    const sv = normalize(await engine.embed(config.similarityPrefix + expanded));
     extras = used
       .slice(1)
       .flatMap((h) => h.chunk.sentenceVectors.map((v, i) => ({ chunk: h.chunk, lineIndex: i, score: dot(v, sv) })))

@@ -43,7 +43,7 @@ export default function Section() {
             </View>
           ))}
         </View>
-        <GlossaryChips texts={chunk.sentences} />
+        <GlossaryChips texts={[chunk.title, ...chunk.sentences]} />
         <Text style={[styles.caption, { color: t.textMuted }]}>出典：山の安全マニュアル（検証用の仮データ）</Text>
 
         {chunk.related.length > 0 && (
