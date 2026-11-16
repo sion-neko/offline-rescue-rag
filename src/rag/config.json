@@ -11,5 +11,13 @@
   "generation": {
     "maxTokens": 300,
     "temperature": 0.1
-  }
+  },
+  "similarityPrefix": "task: sentence similarity | query: ",
+  "relatedMinScore": 0.5,
+  "citeMinScore": 0.6,
+  "selectSystemPrompt": "あなたは山で遭難した人を助ける手引きです。\n番号つきの文の中から、質問した人がいま取るべき行動として大事なものを選びます。\n大事な順に、番号をカンマで区切って答えてください。多くても5つ。番号以外は書かないでください。",
+  "selectUserTemplate": "質問: {question}\n\n文:\n{sentences}\n\n質問「{question}」に大事な文の番号:",
+  "selectMax": 5,
+  "extraMinScore": 0.55,
+  "extraMax": 2
 }

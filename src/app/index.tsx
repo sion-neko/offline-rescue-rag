@@ -1,0 +1,172 @@
+// ホーム：検索欄と「いまの状況」ボタン。下に目次と通報。
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { situations } from '../data/situations';
+import { ragIndex } from '../rag/rag';
+import { useApp } from '../state/app';
+import { BookIcon, ClockIcon, MoonIcon, PhoneIcon, SunIcon } from '../ui/icons';
+import { PressableCard, SearchField, SectionLabel } from '../ui/parts';
+import { font, minTouch } from '../ui/theme';
+
+export default function Home() {
+  const { theme: t, recent, clearRecent, status, themeMode, setThemeMode } = useApp();
+  const [q, setQ] = useState('');
+
+  const go = (query: string) => {
+    const text = query.trim();
+    if (!text) return;
+    router.push({ pathname: '/result', params: { q: text } });
+  };
+
+  const nextMode = t.dark ? 'light' : 'dark';
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: t.bg }]} edges={['top', 'left', 'right', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: t.text }]} accessibilityRole="header">
+              山の手引き
+            </Text>
+            <Text style={[styles.subtitle, { color: t.textMuted }]}>
+              山の安全マニュアル {ragIndex.chunks.length}項目・圏外でも使える
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setThemeMode(themeMode === 'system' ? nextMode : nextMode)}
+            accessibilityRole="button"
+            accessibilityLabel={t.dark ? '明るい表示にする' : '夜・節電の表示にする'}
+            testID="theme-toggle"
+            style={({ pressed }) => [styles.themeButton, { backgroundColor: t.surfaceAlt, opacity: pressed ? 0.6 : 1 }]}
+          >
+            {t.dark ? <SunIcon color={t.text} /> : <MoonIcon color={t.text} />}
+          </Pressable>
+        </View>
+
+        <SearchField value={q} onChangeText={setQ} onSubmit={() => go(q)} />
+
+        {!status.searchReady && !status.error && (
+          <Text style={[styles.loading, { color: t.textMuted }]} testID="home-loading">
+            検索の準備中… 目次と通報はすぐ使えます
+          </Text>
+        )}
+        {status.error && (
+          <Text style={[styles.loading, { color: t.danger }]}>
+            検索を準備できませんでした。目次から資料を読めます。
+          </Text>
+        )}
+
+        <View style={styles.block}>
+          <SectionLabel>いまの状況</SectionLabel>
+          <View style={styles.grid}>
+            {situations.map((s) => (
+              <PressableCard
+                key={s.label}
+                onPress={() => go(s.query)}
+                accessibilityLabel={s.label}
+                testID={`situation-${s.label}`}
+                style={[styles.situation, { backgroundColor: t.accentSoft }]}
+              >
+                <s.Icon size={22} color={t.accent} />
+                <Text style={[styles.situationText, { color: t.text }]}>{s.label}</Text>
+              </PressableCard>
+            ))}
+          </View>
+        </View>
+
+        {recent.length > 0 && (
+          <View style={styles.block}>
+            <View style={styles.rowBetween}>
+              <SectionLabel>最近の検索</SectionLabel>
+              <Pressable onPress={clearRecent} accessibilityRole="button" hitSlop={10}>
+                <Text style={[styles.link, { color: t.textMuted }]}>消去</Text>
+              </Pressable>
+            </View>
+            {recent.map((r) => (
+              <Pressable
+                key={r}
+                onPress={() => go(r)}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.recent, { opacity: pressed ? 0.5 : 1 }]}
+              >
+                <ClockIcon color={t.textMuted} />
+                <Text style={[styles.recentText, { color: t.textSub }]} numberOfLines={1}>
+                  {r}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      <View style={[styles.footer, { borderTopColor: t.border, backgroundColor: t.bg }]}>
+        <PressableCard
+          onPress={() => router.push('/contents')}
+          accessibilityLabel="マニュアルの目次"
+          testID="contents-button"
+          style={[styles.footerButton, { backgroundColor: t.surfaceAlt }]}
+        >
+          <BookIcon color={t.text} />
+          <Text style={[styles.footerText, { color: t.text }]}>目次</Text>
+        </PressableCard>
+        <PressableCard
+          onPress={() => router.push('/emergency')}
+          accessibilityLabel="救助を呼ぶ"
+          testID="emergency-button"
+          style={[styles.footerButton, styles.footerMain, { backgroundColor: t.danger }]}
+        >
+          <PhoneIcon color={t.dangerText} />
+          <Text style={[styles.footerText, { color: t.dangerText, fontWeight: '700' }]}>救助を呼ぶ</Text>
+        </PressableCard>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1 },
+  content: { padding: 20, paddingTop: 24, gap: 22, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  title: { fontSize: font.title, fontWeight: '700' },
+  subtitle: { fontSize: 13, marginTop: 4 },
+  themeButton: { width: minTouch, height: minTouch, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  loading: { fontSize: font.small, marginTop: -10 },
+  block: { gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  situation: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    minHeight: 60,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  situationText: { fontSize: font.body, fontWeight: '700', flexShrink: 1 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  link: { fontSize: font.small },
+  recent: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  recentText: { fontSize: 16, flex: 1 },
+  footer: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  footerButton: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  footerMain: { flex: 1.6 },
+  footerText: { fontSize: 16 },
+});

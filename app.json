@@ -5,11 +5,16 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.sionneko.offlinerescuerag",
-      "config": { "usesNonExemptEncryption": false }
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "救助を呼ぶときに伝える現在地（緯度経度）を表示するために使います。位置情報は端末の外に送りません。"
+      }
     },
     "android": {
       "package": "com.sionneko.offlinerescuerag",
@@ -26,9 +31,28 @@
       "output": "single"
     },
     "plugins": [
-      ["llama.rn", { "enableEntitlements": true, "entitlementsProfile": "production", "forceCxx20": true, "enableOpenCLAndHexagon": false }],
+      "expo-router",
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true,
+          "entitlementsProfile": "production",
+          "forceCxx20": true,
+          "enableOpenCLAndHexagon": false
+        }
+      ],
       "expo-build-properties",
-      "./plugins/with-bundled-models"
-    ]
+      "./plugins/with-bundled-models",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "救助を呼ぶときに伝える現在地（緯度経度）を表示するために使います。位置情報は端末の外に送りません。"
+        }
+      ]
+    ],
+    "scheme": "offlinerescuerag",
+    "experiments": {
+      "typedRoutes": false
+    }
   }
 }

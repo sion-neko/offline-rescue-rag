@@ -1,7 +1,7 @@
 // web 用のエンジン（Claude が動作確認に使う）。速さは参考にならない。
 // モデルは scripts/serve-web.mjs が /models/ で配信する。
 import { Wllama } from '@wllama/wllama';
-import type { ChatMessage, Engine, GenerateOptions, GenerateResult, LoadProgress } from './types';
+import type { ChatMessage, Engine, GenerateOptions, GenerateResult } from './types';
 
 const WASM = { default: '/wllama/wllama.wasm' };
 
@@ -10,26 +10,27 @@ class WebEngine implements Engine {
   private llm: Wllama | null = null;
   private emb: Wllama | null = null;
 
-  async load(onProgress?: (p: LoadProgress) => void) {
-    if (!this.emb) {
-      const emb = new Wllama(WASM);
-      await emb.loadModelFromUrl('/models/embed.gguf', {
-        embeddings: true,
-        n_ctx: 512,
-        useCache: false,
-        progressCallback: ({ loaded, total }) => onProgress?.({ stage: 'embed', ratio: loaded / total }),
-      });
-      this.emb = emb;
-    }
-    if (!this.llm) {
-      const llm = new Wllama(WASM);
-      await llm.loadModelFromUrl('/models/llm.gguf', {
-        n_ctx: 4096,
-        useCache: false,
-        progressCallback: ({ loaded, total }) => onProgress?.({ stage: 'llm', ratio: loaded / total }),
-      });
-      this.llm = llm;
-    }
+  async loadEmbed(onProgress?: (ratio: number) => void) {
+    if (this.emb) return;
+    const emb = new Wllama(WASM);
+    await emb.loadModelFromUrl('/models/embed.gguf', {
+      embeddings: true,
+      n_ctx: 512,
+      useCache: false,
+      progressCallback: ({ loaded, total }) => onProgress?.(loaded / total),
+    });
+    this.emb = emb;
+  }
+
+  async loadLlm(onProgress?: (ratio: number) => void) {
+    if (this.llm) return;
+    const llm = new Wllama(WASM);
+    await llm.loadModelFromUrl('/models/llm.gguf', {
+      n_ctx: 4096,
+      useCache: false,
+      progressCallback: ({ loaded, total }) => onProgress?.(loaded / total),
+    });
+    this.llm = llm;
   }
 
   async embed(text: string) {

@@ -1,57 +1,122 @@
-// 「質問 → 検索 → 要約」の流れ。プロンプトや閾値は config.json にまとめてあり、
-// scripts/eval-rag.mjs（Linux での確認用）と同じ設定を使う。
+// 「質問 → 検索 → 答え」の流れ。
+//
+// 答えは 2 段構え：
+// 1. 資料の要点（AI を使わない）：いちばん近い項目の要点を原文のまま全部と、
+//    ほかの項目から「あわせて確認」する行。一瞬で出て、作り話は原理的に出ない。
+// 2. AI の短いまとめ（ボタンを押したときだけ）：小さな LLM が要約し、各行に近い原文の番号を付ける。
+//
+// 1.2B の LLM は資料にない内容を付け足すことがあり、それを自動で見分けられなかったので
+// （scripts/eval-cite.mjs）、メインの答えは原文にしている。
 import config from './config.json';
 import indexJson from '../../assets/rag/index.json';
 import type { Engine } from '../ai/types';
-import type { Hit, RagIndex, VectorStore } from './types';
-import { normalize } from './vector';
+import type { Chunk, Glossary, Hit, RagIndex, VectorStore } from './types';
+import { dot, normalize } from './vector';
 
 export const ragIndex = indexJson as RagIndex;
 export const ragConfig = config;
 
-export type AnswerResult = {
+export function getChunk(id: string): Chunk | undefined {
+  return ragIndex.chunks.find((c) => c.id === id);
+}
+
+export function glossary(): Glossary[] {
+  return ragIndex.glossary;
+}
+
+export type ExtraLine = { chunk: Chunk; lineIndex: number; score: number };
+
+export type SearchResult = {
+  question: string;
   hits: Hit[];
-  /** 閾値を超えて、要約に使った資料 */
+  /** 閾値を超えた項目（多くて topK 件） */
   used: Hit[];
-  text: string;
-  timings: { embedMs: number; searchMs: number; generateMs: number; tokens: number; tokensPerSecond: number };
+  /** いちばん近い項目。なければ null（資料にない質問） */
+  top: Hit | null;
+  /** ほかの項目から「あわせて確認」する行 */
+  extras: ExtraLine[];
+  timings: { embedMs: number; searchMs: number };
+};
+
+export async function search(question: string, engine: Engine, store: VectorStore): Promise<SearchResult> {
+  const t0 = Date.now();
+  const qv = normalize(await engine.embed(config.queryPrefix + question));
+  const t1 = Date.now();
+  const hits = await store.search(qv, Math.max(config.topK, 4));
+  const used = hits.slice(0, config.topK).filter((h) => h.score >= config.minScore);
+  const top = used[0] ?? null;
+
+  let extras: ExtraLine[] = [];
+  if (top && used.length > 1) {
+    const sv = normalize(await engine.embed(config.similarityPrefix + question));
+    extras = used
+      .slice(1)
+      .flatMap((h) => h.chunk.sentenceVectors.map((v, i) => ({ chunk: h.chunk, lineIndex: i, score: dot(v, sv) })))
+      .filter((x) => x.score >= config.extraMinScore)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, config.extraMax);
+  }
+  return { question, hits, used, top, extras, timings: { embedMs: t1 - t0, searchMs: Date.now() - t1 } };
+}
+
+export type Citation = { chunk: Chunk; lineIndex: number; score: number };
+export type SummaryLine = { text: string; citation: Citation | null };
+export type SummaryResult = {
+  lines: SummaryLine[];
+  timings: { generateMs: number; tokens: number; tokensPerSecond: number };
 };
 
 const fill = (tpl: string, vars: Record<string, string>) =>
   tpl.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? '');
 
-export async function answer(
-  question: string,
+/** AI の短いまとめ。各行に、いちばん近い原文の行を出典として付ける。 */
+export async function summarize(
+  result: SearchResult,
   engine: Engine,
-  store: VectorStore,
-  onToken?: (accumulated: string) => void,
-): Promise<AnswerResult> {
+  onText?: (text: string) => void,
+): Promise<SummaryResult> {
   const t0 = Date.now();
-  const qv = normalize(await engine.embed(config.queryPrefix + question));
-  const t1 = Date.now();
-  const hits = await store.search(qv, Math.max(config.topK, 4));
-  const t2 = Date.now();
-  const used = hits.slice(0, config.topK).filter((h) => h.score >= config.minScore);
-  const timings = { embedMs: t1 - t0, searchMs: t2 - t1, generateMs: 0, tokens: 0, tokensPerSecond: 0 };
-
-  if (used.length === 0) {
-    onToken?.(config.noHitAnswer);
-    return { hits, used, text: config.noHitAnswer, timings };
-  }
-
-  const context = used
+  const context = result.used
     .map((h) => fill(config.contextTemplate, { title: h.chunk.title, text: h.chunk.text }))
     .join('\n\n');
   const res = await engine.generate(
     [
       { role: 'system', content: config.systemPrompt },
-      { role: 'user', content: fill(config.userTemplate, { context, question }) },
+      { role: 'user', content: fill(config.userTemplate, { context, question: result.question }) },
     ],
     config.generation,
-    onToken,
+    onText,
   );
-  timings.generateMs = Date.now() - t2;
-  timings.tokens = res.tokens;
-  timings.tokensPerSecond = res.tokensPerSecond;
-  return { hits, used, text: res.text.trim(), timings };
+  const generateMs = Date.now() - t0;
+  const texts = res.text
+    .split('\n')
+    .map((l) => l.replace(/^\s*[・\-*•]\s*/, '').trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const lines: SummaryLine[] = [];
+  for (const text of texts) {
+    const v = normalize(await engine.embed(config.similarityPrefix + text));
+    let best: Citation | null = null;
+    for (const h of result.used) {
+      h.chunk.sentenceVectors.forEach((sv, i) => {
+        const score = dot(sv, v);
+        if (!best || score > best.score) best = { chunk: h.chunk, lineIndex: i, score };
+      });
+    }
+    const citation = best as Citation | null;
+    lines.push({ text, citation: citation && citation.score >= config.citeMinScore ? citation : null });
+  }
+  return { lines, timings: { generateMs, tokens: res.tokens, tokensPerSecond: res.tokensPerSecond } };
+}
+
+/** 目次用：分類ごとにまとめる（マニュアルに書いた順） */
+export function contents(): { category: string; chunks: Chunk[] }[] {
+  const groups: { category: string; chunks: Chunk[] }[] = [];
+  for (const c of ragIndex.chunks) {
+    let g = groups.find((x) => x.category === c.category);
+    if (!g) groups.push((g = { category: c.category, chunks: [] }));
+    g.chunks.push(c);
+  }
+  return groups;
 }
