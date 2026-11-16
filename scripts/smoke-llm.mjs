@@ -1,0 +1,15 @@
+import { getLlama, LlamaChatSession } from "node-llama-cpp";
+const root = new URL("../models/", import.meta.url).pathname;
+const llama = await getLlama({ gpu: false });
+const t0 = Date.now();
+const model = await llama.loadModel({ modelPath: root + "llm.gguf" });
+const ctx = await model.createContext({ contextSize: 2048 });
+const s = new LlamaChatSession({ contextSequence: ctx.getSequence() });
+console.log("load ms", Date.now() - t0);
+const t1 = Date.now();
+const a = await s.prompt("山で道に迷ったときの鉄則を3つ、短く教えて。", { maxTokens: 200, temperature: 0.2 });
+console.log(a, "\n gen ms", Date.now() - t1);
+const em = await llama.loadModel({ modelPath: root + "embed.gguf" });
+const ec = await em.createEmbeddingContext();
+const v = await ec.getEmbeddingFor("query: 道に迷った");
+console.log("embed dim", v.vector.length);

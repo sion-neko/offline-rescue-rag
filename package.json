@@ -1,0 +1,44 @@
+{
+  "name": "offline-rescue-rag",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@op-engineering/op-sqlite": "^19.0.5",
+    "@wllama/wllama": "^3.13.0",
+    "expo": "~58.0.25",
+    "expo-build-properties": "~58.0.12",
+    "expo-clipboard": "~58.0.4",
+    "expo-dev-client": "~58.0.20",
+    "expo-file-system": "~58.0.13",
+    "expo-status-bar": "~58.0.5",
+    "llama.rn": "^0.13.0-rc.11",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-web": "^0.21.4"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "node-llama-cpp": "^3.22.3",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "postinstall": "node scripts/copy-wllama-wasm.mjs",
+    "models": "bash scripts/download-models.sh",
+    "index": "node scripts/build-index.mjs",
+    "eval": "node scripts/eval-rag.mjs",
+    "web:build": "expo export --platform web",
+    "web:serve": "node scripts/serve-web.mjs",
+    "typecheck": "tsc --noEmit",
+    "eas-build-post-install": "bash scripts/download-models.sh"
+  },
+  "private": true,
+  "op-sqlite": {
+    "sqliteVec": true
+  }
+}
