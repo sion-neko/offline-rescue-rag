@@ -1,14 +1,20 @@
+/** 原本（data/qa/*.md）の QA 1 つ。title が代表の質問、sentences が答えの行 */
 export type Chunk = {
   id: string;
   source: string;
   category: string;
   title: string;
+  /** 同じ意味の別の聞き方 */
+  aliases: string[];
+  /** 検索用：質問と言い換えのベクトル（[0] が title）。いちばん近いものの点数を使う */
+  questionVectors: number[][];
   text: string;
-  /** 要点（マニュアルの 1 行 = 1 要点） */
+  /** 答えの行（1 行 = 1 つの指示、やる順） */
   sentences: string[];
   sentenceVectors: number[][];
   /** 関連する資料の id */
   related: string[];
+  /** 質問＋答えのベクトル（関連する資料を自動で選ぶときに使う） */
   vector: number[];
 };
 
@@ -26,6 +32,6 @@ export type Hit = { chunk: Chunk; score: number };
 export interface VectorStore {
   readonly name: string;
   init(index: RagIndex): Promise<void>;
-  /** score はコサイン類似度（1 に近いほど似ている） */
+  /** QA ごとに、質問・言い換えのうちいちばん近いものの点数（コサイン類似度）で並べる */
   search(query: number[], k: number): Promise<Hit[]>;
 }

@@ -1,17 +1,18 @@
 // 「質問 → 検索 → 答え」の流れ。
 //
+// 原本は QA（data/qa/*.md）。検索は、質問を原本の QA の質問・言い換えと比べる。
+//
 // 答えは 2 段構え：
 // 1. AI が選んだ要点（画面の先頭）：LLM（LFM3-1.7B）に「資料の文をそのまま書き写して」と頼み、
 //    書いた行のうち原文の行とほぼ一致するもの（近さ copyMinScore 以上）だけを残す。
 //    画面には LLM の文ではなく、一致した原文の行そのものを出すので、意味が変わることはない。
-// 2. いちばん近い資料の原文：AI の選び漏れがあっても見えるよう、その下に要点を全部出す。
+// 2. いちばん近い QA の答え（原本）：AI の選び漏れがあっても見えるよう、その下に全部出す。
 //    AI の準備中や失敗時も、こちらは一瞬で出る。
 //
 // LLM に自由に要約させると、意味を変えたり資料にないことを書いたりしたため、この形にした
 // （docs/llm-comparison.md）。
 import config from './config.json';
 import indexJson from '../../assets/rag/index.json';
-import synonyms from '../../data/synonyms.json';
 import type { Engine } from '../ai/types';
 import type { Chunk, Glossary, Hit, RagIndex, VectorStore } from './types';
 import { dot, normalize } from './vector';
@@ -45,36 +46,25 @@ export type SearchResult = {
   timings: { embedMs: number; searchMs: number };
 };
 
-/** 言い換えの辞書（data/synonyms.json）で、検索用の文に言葉を足す */
-export function expandQuery(question: string): string {
-  const adds = Object.entries(synonyms.words as Record<string, string>)
-    .filter(([k]) => question.includes(k))
-    .map(([, v]) => v);
-  return adds.length ? `${question} ${[...new Set(adds.join(' ').split(' '))].join(' ')}` : question;
-}
-
 export async function search(question: string, engine: Engine, store: VectorStore): Promise<SearchResult> {
   const t0 = Date.now();
-  const expanded = expandQuery(question);
-  const qv = normalize(await engine.embed(config.queryPrefix + expanded));
+  // 原本の QA の質問・言い換えと比べる（docs/retrieval-comparison.md の C）。
+  // 言い換えは原本に書くので、言い換えの辞書（data/synonyms.json）は使わない
+  const qv = normalize(await engine.embed(config.similarityPrefix + question));
   const t1 = Date.now();
   const hits = await store.search(qv, Math.max(config.topK, 4));
-  const used = hits.slice(0, config.topK).filter((h) => h.score >= config.minScore);
+  const first = hits[0] && hits[0].score >= config.minScore ? hits[0] : null;
+  // 条件が重なる質問（「雨で寒いし、電波もない」）では、条件ごとの QA が上位に並ぶ。
+  // 1 位から離れすぎた QA は、数合わせになるので使わない
+  const used = first
+    ? hits.slice(0, config.topK).filter((h) => h.score >= config.minScore && h.score >= first.score - config.usedMaxGap)
+    : [];
   const top = used[0] ?? null;
 
-  let extras: ExtraLine[] = [];
-  if (top && used.length > 1) {
-    const sv = normalize(await engine.embed(config.similarityPrefix + expanded));
-    // 「あわせて確認」は、マニュアルで関連として指定した資料からだけ選ぶ
-    // （ベクトルが近いだけだと「寒い」に熱中症の「体を冷やす」が混ざるなど、逆の内容が出ることがあるため）
-    extras = used
-      .slice(1)
-      .filter((h) => top.chunk.related.includes(h.chunk.id))
-      .flatMap((h) => h.chunk.sentenceVectors.map((v, i) => ({ chunk: h.chunk, lineIndex: i, score: dot(v, sv) })))
-      .filter((x) => x.score >= config.extraMinScore)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, config.extraMax);
-  }
+  // 「あわせて確認」：2 位以下の QA の答え（条件が重なる質問の、もう片方の条件）
+  const extras: ExtraLine[] = used
+    .slice(1)
+    .flatMap((h) => h.chunk.sentences.map((_, i) => ({ chunk: h.chunk, lineIndex: i, score: h.score })));
   const weak = !!top && top.score < config.weakScore;
   const urgent = config.emergencyWords.some((w) => question.includes(w));
   return { question, hits, used, top, extras, weak, urgent, timings: { embedMs: t1 - t0, searchMs: Date.now() - t1 } };

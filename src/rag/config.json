@@ -3,7 +3,7 @@
   "queryPrefix": "task: search result | query: ",
   "passagePrefix": "title: {title} | text: ",
   "topK": 3,
-  "minScore": 0.45,
+  "minScore": 0.75,
   "systemPrompt": "あなたは山で遭難した人を助ける手引きです。\n下の「資料」から、質問した人がいま取るべき行動が書かれた文を選び、大事な順に箇条書きにしてください。\n資料の文をそのまま書き写してください。言い換え・付け足しはしないでください。\n1行に1つずつ「・」で始めて書き、資料の題名は書かないでください。多くても4行までにしてください。\n箇条書きのあとには何も書かないでください。",
   "contextTemplate": "【{title}】\n{text}",
   "userTemplate": "資料:\n{context}\n\n質問: {question}",
@@ -17,9 +17,7 @@
   "selectSystemPrompt": "あなたは山で遭難した人を助ける手引きです。\n番号つきの文の中から、質問した人がいま取るべき行動として大事なものを選びます。\n大事な順に、番号をカンマで区切って答えてください。多くても5つ。番号以外は書かないでください。",
   "selectUserTemplate": "質問: {question}\n\n文:\n{sentences}\n\n質問「{question}」に大事な文の番号:",
   "selectMax": 5,
-  "extraMinScore": 0.55,
-  "extraMax": 2,
-  "weakScore": 0.58,
+  "weakScore": 0.82,
   "emergencyWords": [
     "助けて",
     "たすけて",
@@ -34,5 +32,6 @@
     "やばい"
   ],
   "copyMinScore": 0.9,
-  "summaryMax": 4
+  "summaryMax": 4,
+  "usedMaxGap": 0.1
 }

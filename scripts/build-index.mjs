@@ -1,41 +1,43 @@
-// data/manual/*.md と data/glossary.md から、アプリに同梱する索引 assets/rag/index.json を作る。
-// - 見出し（## ）ごとに 1 チャンク。検索用のベクトルを付ける
-// - チャンクを行（要点）に分け、行ごとのベクトルも付ける
-// - チャンクどうしの似ている度合いから「関連する資料」を決めておく（アプリでは AI を使わない）
+// data/qa/*.md（原本）と data/glossary.md から、アプリに同梱する索引 assets/rag/index.json を作る。
+// - QA（## の質問）ごとに 1 チャンク。質問と言い換えのベクトル（検索用）を付ける
+// - 答えの行ごとのベクトルも付ける（AI の答えに出典を付けるときに使う）
+// - 「関連:」がなければ、チャンクどうしの似ている度合いから「関連する資料」を決めておく
 // - 用語集はそのまま入れる
 // 使い方: node scripts/build-index.mjs
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { getLlama } from "node-llama-cpp";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const config = JSON.parse(readFileSync(root + "src/rag/config.json", "utf8"));
 const stripComments = (s) => s.replace(/<!--[\s\S]*?-->/g, "");
 const round = (v) => Math.round(v * 1e4) / 1e4;
+// Windows では git が CRLF で取り出すことがあるので、改行を LF にそろえて読む
+const readText = (path) => readFileSync(root + path, "utf8").replace(/\r\n/g, "\n");
 
-// --- マニュアル ---
+// --- QA（原本） ---
 const chunks = [];
-for (const file of readdirSync(root + "data/manual").filter((f) => f.endsWith(".md")).sort()) {
+for (const file of readdirSync(root + "data/qa").filter((f) => f.endsWith(".md")).sort()) {
   const source = file.replace(/\.md$/, "");
-  const body = stripComments(readFileSync(root + "data/manual/" + file, "utf8"));
+  const body = stripComments(readText("data/qa/" + file));
   for (const part of body.split(/^## /m).slice(1)) {
     const [title, ...rest] = part.split("\n");
     let category = "その他";
+    let aliases = [];
     let relatedTitles = null;
-    const lines = rest.filter((line) => {
-      const m = line.match(/^分類:\s*(.+)$/);
-      if (m) category = m[1].trim();
-      const r = line.match(/^関連:\s*(.+)$/);
-      if (r) relatedTitles = r[1].split(/,\s*/).map((s) => s.trim()).filter(Boolean);
-      return !m && !r;
-    });
-    const text = lines.join("\n").trim();
-    if (!text) continue;
-    // マニュアルは 1 行に 1 つの要点を書く決まりなので、行を「要点」の単位にする
-    const sentences = text
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    chunks.push({ id: `${source}-${chunks.length}`, source, category, title: title.trim(), text, sentences, relatedTitles });
+    const sentences = rest
+      .map((line) => line.trim())
+      .filter((line) => {
+        const m = line.match(/^分類:\s*(.+)$/);
+        if (m) category = m[1].trim();
+        const a = line.match(/^言い換え:\s*(.+)$/);
+        if (a) aliases = a[1].split(/[,、]/).map((x) => x.trim()).filter(Boolean);
+        const r = line.match(/^関連:\s*(.+)$/);
+        if (r) relatedTitles = r[1].split(/,\s*/).map((x) => x.trim()).filter(Boolean);
+        return line && !m && !a && !r;
+      });
+    if (!sentences.length) continue;
+    chunks.push({ id: `${source}-${chunks.length}`, source, category, title: title.trim(), aliases, text: sentences.join("\n"), sentences, relatedTitles });
   }
 }
 
@@ -51,7 +53,7 @@ for (const c of chunks) {
 
 // --- 用語集 ---
 const glossary = [];
-for (const part of stripComments(readFileSync(root + "data/glossary.md", "utf8")).split(/^## /m).slice(1)) {
+for (const part of stripComments(readText("data/glossary.md")).split(/^## /m).slice(1)) {
   const [term, ...rest] = part.split("\n");
   let aliases = [];
   const lines = rest.filter((line) => {
@@ -75,11 +77,14 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
 
 for (const c of chunks) {
   c.vector = await embed(config.passagePrefix.replace("{title}", c.title) + c.text);
+  // 検索は、質問と言い換えのうちいちばん近いもので測る（docs/retrieval-comparison.md）
+  c.questionVectors = [];
+  for (const q of [c.title, ...c.aliases]) c.questionVectors.push(await embed(config.similarityPrefix + q));
   c.sentenceVectors = [];
   for (const s of c.sentences) c.sentenceVectors.push(await embed(config.similarityPrefix + s));
 }
 
-// 関連する資料：マニュアルの「関連:」があればそれを使い、なければ似ている順に上位を（閾値を超えたものだけ）
+// 関連する資料：原本の「関連:」があればそれを使い、なければ似ている順に上位を（閾値を超えたものだけ）
 for (const c of chunks) {
   if (c.relatedTitles) {
     c.related = c.relatedTitles.map((t) => {

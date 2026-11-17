@@ -21,11 +21,11 @@
 
 ## 答えの作り方
 
-1. 言い換えの辞書（`data/synonyms.json`）で質問を補い、マニュアルの項目を検索する（EmbeddingGemma-300m）
+1. 原本の QA（`data/qa/*.md`）の質問・言い換えと比べて、近い QA を探す（EmbeddingGemma-300m）。1 位から離れすぎた QA と、点数が `minScore` 未満の QA は使わない。比較は `docs/retrieval-comparison.md`
 2. LLM（LFM3-1.7B）に、見つかった資料から質問に合う文を**そのまま書き写して**選ばせる（考える過程は切る）
 3. 書いた行のうち、原文の行とほぼ一致するもの（近さ 0.9 以上）だけを残し、**原文の行そのもの**を画面の先頭に出す。一致しない行（作り話・余計な行）は捨てる
 4. その下に、いちばん近い項目の要点を原文のまま全部出す（AI の選び漏れがあっても見えるように。AI の準備中も先に読める）
-5. 関連と指定した項目から、質問に近い行を「あわせて確認」として出す
+5. 2 位以下の QA（条件が重なる質問の、もう片方の条件）の答えを「あわせて確認」として出す
 
 LLM に自由に要約させると、意味を変えたり資料にないことを書いたりしたため、この形にした。モデルとプロンプトの比較は `docs/llm-comparison.md`。
 
@@ -37,9 +37,9 @@ LLM に自由に要約させると、意味を変えたり資料にないこと�
 | embedding | llama.rn + EmbeddingGemma-300m（QAT Q8_0） | wllama（同じ GGUF） |
 | ベクトル検索 | op-sqlite + sqlite-vec | JS で全件のコサイン類似度 |
 
-- マニュアル：`data/manual/*.md`（いまは**仮データ・未監修**）。`## 見出し` の次に `分類:` と `関連:` の行を書く
+- 原本：`data/qa/*.md`（いまは**仮データ・未監修**）。QA の形で書く（`## 質問` の次に `分類:`・`言い換え:`・`関連:`、その下に答えの行）。書き方は各ファイルの先頭と `docs/adr/` を参照
 - 用語集：`data/glossary.md`（仮データ・未監修）
-- 索引：`assets/rag/index.json`（`npm run index` で作り直す。項目・要点ごとのベクトル、関連する資料、用語集）
+- 索引：`assets/rag/index.json`（`npm run index` で作り直す。QA の質問・言い換えと答えの行のベクトル、関連する資料、用語集）
 - プロンプト・閾値：`src/rag/config.json`
 - モデルは git に入れず、`npm run models` でダウンロードする。iOS では config plugin（`plugins/with-bundled-models.js`）がアプリ本体に同梱する
 
@@ -48,7 +48,7 @@ LLM に自由に要約させると、意味を変えたり資料にないこと�
 ```sh
 npm install
 npm run models          # モデルを models/ にダウンロード（約1.4GB）
-npm run index           # マニュアル・用語集を書き換えたら索引を作り直す
+npm run index           # 原本（data/qa）・用語集を書き換えたら索引を作り直す
 npm run typecheck && npx expo lint
 npm run web:build && npm run web:serve   # web 版を http://localhost:8081 で動かす
 

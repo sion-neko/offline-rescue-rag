@@ -14,7 +14,7 @@ class BruteForceStore implements VectorStore {
     if (!this.index) throw new Error('検索の準備ができていません');
     const q = normalize(query);
     return this.index.chunks
-      .map((chunk) => ({ chunk, score: dot(chunk.vector, q) }))
+      .map((chunk) => ({ chunk, score: Math.max(...chunk.questionVectors.map((v) => dot(v, q))) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, k);
   }
