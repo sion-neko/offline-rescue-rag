@@ -54,6 +54,8 @@ class WebEngine implements Engine {
       messages,
       max_tokens: options.maxTokens,
       temperature: options.temperature,
+      // LFM3 は答える前に考える過程を出すモデル。考える過程は切る
+      chat_template_kwargs: { enable_thinking: false },
       stream: true,
       onData: (chunk) => {
         const delta = chunk.choices[0]?.delta?.content;
@@ -67,7 +69,7 @@ class WebEngine implements Engine {
         }
       },
     });
-    return { text: acc, tokens, tokensPerSecond: tps };
+    return { text: acc.replace(/<think>[\s\S]*?<\/think>/g, '').trim(), tokens, tokensPerSecond: tps };
   }
 }
 

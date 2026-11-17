@@ -27,6 +27,6 @@ for (const q of qs) {
     const v = await emb(config.similarityPrefix + line);
     let best = null;
     for (const h of used) h.c.sentenceVectors.forEach((sv, i) => { const s = dot(sv, v); if (!best || s > best.s) best = { s, c: h.c, i }; });
-    console.log(`  ・${line}\n      ${best.s.toFixed(2)} ${best.s >= config.citeMinScore ? "→" : "×"} ［${best.c.title}］${best.c.sentences[best.i].slice(0, 40)}`);
+    console.log(`  ・${line}\n      ${best.s.toFixed(2)} ${best.s >= config.copyMinScore ? "→" : "×"} ［${best.c.title}］${best.c.sentences[best.i].slice(0, 40)}`);
   }
 }

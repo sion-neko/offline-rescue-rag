@@ -14,7 +14,7 @@ import { font, minTouch } from '../ui/theme';
 
 type SummaryState =
   | { kind: 'idle' }
-  | { kind: 'running'; text: string }
+  | { kind: 'running' }
   | { kind: 'done'; result: SummaryResult }
   | { kind: 'error'; message: string };
 
@@ -50,22 +50,29 @@ function ResultBody({ q }: { q: string }) {
     };
   }, [q, status.searchReady, engine, store, addRecent]);
 
-  const runSummary = async () => {
-    if (!result || !status.llmReady || summary.kind === 'running') return;
-    setSummary({ kind: 'running', text: '' });
-    try {
-      const s = await summarize(result, engine, (text) => setSummary({ kind: 'running', text }));
-      log(
-        `まとめ gen=${s.timings.generateMs}ms tokens=${s.timings.tokens} ${s.timings.tokensPerSecond.toFixed(1)}tok/s ` +
-          s.lines.map((l) => (l.citation ? l.citation.score.toFixed(2) : '出典なし')).join(','),
-      );
-      setSummary({ kind: 'done', result: s });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      log(`まとめエラー: ${message}`);
-      setSummary({ kind: 'error', message });
-    }
-  };
+  // 検索結果が出て AI の準備ができたら、自動で要点を選ばせる（その間も下の原文は読める）
+  useEffect(() => {
+    if (!result?.top || !status.llmReady || summary.kind !== 'idle') return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSummary({ kind: 'running' });
+    summarize(result, engine)
+      .then((s) => {
+        log(
+          `要点 gen=${s.timings.generateMs}ms tokens=${s.timings.tokens} ${s.timings.tokensPerSecond.toFixed(1)}tok/s ` +
+            `picks=${s.picks.map((p) => p.score.toFixed(2)).join(',')} dropped=${s.dropped}`,
+        );
+        if (!cancelled) setSummary({ kind: 'done', result: s });
+      })
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : String(e);
+        log(`要点エラー: ${message}`);
+        if (!cancelled) setSummary({ kind: 'error', message });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [result, status.llmReady, summary.kind, engine]);
 
   const submit = () => {
     const text = input.trim();
@@ -106,8 +113,16 @@ function ResultBody({ q }: { q: string }) {
 
         {result?.top && (
           <>
+            <SummaryBlock
+              state={summary}
+              llmReady={status.llmReady}
+              llmFailed={!!status.llmError}
+              progress={status.progress}
+              onCite={openSection}
+            />
+
             <View style={styles.block} testID="top-result">
-              <SectionLabel>いちばん近い資料</SectionLabel>
+              <SectionLabel>いちばん近い資料（原文）</SectionLabel>
               {result.weak && (
                 <Text style={[styles.body, { color: t.textSub }]} testID="weak-note">
                   質問との関係が薄いかもしれません。違うときは、言葉を変えるか
@@ -168,15 +183,6 @@ function ResultBody({ q }: { q: string }) {
                 ))}
               </View>
             )}
-
-            <SummaryBlock
-              state={summary}
-              llmReady={status.llmReady}
-              llmFailed={!!status.llmError}
-              progress={status.progress}
-              onRun={runSummary}
-              onCite={openSection}
-            />
 
             {result.top.chunk.related.length > 0 && (
               <View style={styles.block} testID="related">
@@ -242,88 +248,69 @@ function SummaryBlock({
   llmReady,
   llmFailed,
   progress,
-  onRun,
   onCite,
 }: {
   state: SummaryState;
   llmReady: boolean;
   llmFailed: boolean;
   progress: number;
-  onRun: () => void;
   onCite: (id: string, line: number) => void;
 }) {
   const { theme: t } = useApp();
+  if (llmFailed && state.kind === 'idle') return null;
   return (
-    <View style={styles.block} testID="summary">
-      {state.kind === 'idle' && llmReady && (
-        <PressableCard
-          onPress={onRun}
-          accessibilityLabel="AIで短くまとめる"
-          testID="summary-button"
-          style={[styles.aiButton, { borderColor: t.border }]}
-        >
-          <SparkIcon color={t.accent} />
-          <Text style={[styles.aiButtonText, { color: t.text }]}>AIで短くまとめる</Text>
-        </PressableCard>
+    <View style={[styles.card, styles.aiCard, { borderColor: t.accent }]} testID="summary">
+      <View style={styles.aiLabel}>
+        <SparkIcon color={t.accent} />
+        <Text style={[styles.aiLabelText, { color: t.accent }]} accessibilityRole="header">
+          AIが選んだ要点
+        </Text>
+      </View>
+      {state.kind === 'idle' && (
+        <Text style={[styles.small, { color: t.textSub }]} testID="summary-waiting">
+          {!llmReady && progress > 0 && progress < 1
+            ? `AIを準備中（${Math.round(progress * 100)}%）。下の原文は先に読めます`
+            : 'AIを準備中。下の原文は先に読めます'}
+        </Text>
       )}
-      {state.kind === 'idle' && !llmReady && (
-        <View style={styles.aiWaiting} testID="summary-waiting">
-          <SparkIcon color={t.textMuted} />
-          <Text style={[styles.small, { color: t.textMuted }]}>
-            {llmFailed
-              ? 'AIのまとめは使えません。上の資料はそのまま読めます'
-              : progress > 0 && progress < 1
-                ? `AIのまとめを準備中（${Math.round(progress * 100)}%）`
-                : 'AIのまとめを準備中'}
+      {state.kind === 'running' && (
+        <View style={styles.aiWaiting}>
+          <ActivityIndicator color={t.accent} />
+          <Text style={[styles.small, { color: t.textSub, flex: 1 }]}>
+            資料から選んでいます。下の原文は先に読めます
           </Text>
         </View>
       )}
-      {state.kind !== 'idle' && (
-        <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, borderWidth: 1 }]}>
-          <View style={styles.aiLabel}>
-            <SparkIcon color={t.accent} />
-            <Text style={[styles.aiLabelText, { color: t.accent }]}>
-              {state.kind === 'running' ? 'AIのまとめ 作成中' : 'AIのまとめ'}
-            </Text>
+      {state.kind === 'error' && (
+        <Text style={[styles.small, { color: t.textSub }]}>AIが要点を選べませんでした。下の原文を見てください。</Text>
+      )}
+      {state.kind === 'done' && state.result.picks.length === 0 && (
+        <Text style={[styles.small, { color: t.textSub }]}>AIが選べる行がありませんでした。下の原文を見てください。</Text>
+      )}
+      {state.kind === 'done' &&
+        state.result.picks.map((p) => (
+          <View key={`${p.chunk.id}-${p.lineIndex}`} style={styles.point}>
+            <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={[styles.body, { color: t.text, fontWeight: '600' }]}>{p.chunk.sentences[p.lineIndex]}</Text>
+              <Pressable
+                onPress={() => onCite(p.chunk.id, p.lineIndex)}
+                accessibilityRole="link"
+                accessibilityLabel={`出典：${p.chunk.title}`}
+                style={({ pressed }) => [styles.citeChip, { backgroundColor: t.accentSoft, opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Text style={[styles.cite, { color: t.accent }]} numberOfLines={1}>
+                  出典：{p.chunk.title}
+                </Text>
+                <ChevronIcon size={12} color={t.accent} />
+              </Pressable>
+            </View>
           </View>
-          {state.kind === 'running' && (
-            <Text style={[styles.body, { color: t.textSub }]}>{state.text || '資料を読んでいます。1分ほどかかることがあります。上の資料は先に読めます'}</Text>
-          )}
-          {state.kind === 'error' && (
-            <Text style={[styles.body, { color: t.textSub }]}>AIのまとめを作れませんでした。上の資料はそのまま読めます。</Text>
-          )}
-          {state.kind === 'done' &&
-            state.result.lines.map((l, i) => (
-              <View key={i} style={styles.point}>
-                <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={[styles.body, { color: l.citation ? t.text : t.textMuted }]}>{l.text}</Text>
-                  {l.citation ? (
-                    <Pressable
-                      onPress={() => onCite(l.citation!.chunk.id, l.citation!.lineIndex)}
-                      accessibilityRole="link"
-                      accessibilityLabel={`出典：${l.citation.chunk.title}`}
-                      style={({ pressed }) => [styles.citeChip, { backgroundColor: t.accentSoft, opacity: pressed ? 0.6 : 1 }]}
-                    >
-                      <Text style={[styles.cite, { color: t.accent }]} numberOfLines={1}>
-                        出典：{l.citation.chunk.title}
-                      </Text>
-                      <ChevronIcon size={12} color={t.accent} />
-                    </Pressable>
-                  ) : (
-                    <View style={[styles.citeChip, { backgroundColor: t.surfaceAlt }]}>
-                      <Text style={[styles.cite, { color: t.textSub }]}>原文で確認できず</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            ))}
-          {state.kind === 'done' && (
-            <Text style={[styles.warn, { color: t.text }]}>
-              AIは資料にないことを書いたり、意味を変えたりすることがあります。行動の前に、上の原文を確かめてください。
-            </Text>
-          )}
-        </View>
+        ))}
+      {state.kind === 'done' && state.result.picks.length > 0 && (
+        <Text style={[styles.small, { color: t.textSub }]}>
+          資料の文をそのまま選んでいます。選び漏れがあるので、下の原文も見てください。
+        </Text>
       )}
     </View>
   );
@@ -384,22 +371,12 @@ const styles = StyleSheet.create({
   caption: { fontSize: font.caption, lineHeight: 21 },
   extra: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 6 },
   extraSource: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', minHeight: 44 },
-  aiButton: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  aiButtonText: { fontSize: 16, fontWeight: '700' },
   aiWaiting: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  aiCard: { borderWidth: 1.5 },
   aiLabelText: { fontSize: 15, fontWeight: '700' },
   cite: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
   citeChip: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36, paddingHorizontal: 10, borderRadius: 10, maxWidth: '100%' },
-  warn: { fontSize: 15, lineHeight: 23, fontWeight: '600' },
   list: { borderRadius: 14, overflow: 'hidden' },
   listRow: { minHeight: minTouch, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   listText: { fontSize: 16, flexShrink: 1 },

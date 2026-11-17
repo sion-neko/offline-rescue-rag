@@ -1,12 +1,14 @@
 // 「質問 → 検索 → 答え」の流れ。
 //
 // 答えは 2 段構え：
-// 1. 資料の要点（AI を使わない）：いちばん近い項目の要点を原文のまま全部と、
-//    ほかの項目から「あわせて確認」する行。一瞬で出て、作り話は原理的に出ない。
-// 2. AI の短いまとめ（ボタンを押したときだけ）：小さな LLM が要約し、各行に近い原文の番号を付ける。
+// 1. AI が選んだ要点（画面の先頭）：LLM（LFM3-1.7B）に「資料の文をそのまま書き写して」と頼み、
+//    書いた行のうち原文の行とほぼ一致するもの（近さ copyMinScore 以上）だけを残す。
+//    画面には LLM の文ではなく、一致した原文の行そのものを出すので、意味が変わることはない。
+// 2. いちばん近い資料の原文：AI の選び漏れがあっても見えるよう、その下に要点を全部出す。
+//    AI の準備中や失敗時も、こちらは一瞬で出る。
 //
-// 1.2B の LLM は資料にない内容を付け足すことがあり、それを自動で見分けられなかったので
-// （scripts/eval-cite.mjs）、メインの答えは原文にしている。
+// LLM に自由に要約させると、意味を変えたり資料にないことを書いたりしたため、この形にした
+// （docs/llm-comparison.md）。
 import config from './config.json';
 import indexJson from '../../assets/rag/index.json';
 import synonyms from '../../data/synonyms.json';
@@ -79,16 +81,28 @@ export async function search(question: string, engine: Engine, store: VectorStor
 }
 
 export type Citation = { chunk: Chunk; lineIndex: number; score: number };
-export type SummaryLine = { text: string; citation: Citation | null };
 export type SummaryResult = {
-  lines: SummaryLine[];
+  /** AI が選んだ原文の行（大事な順） */
+  picks: Citation[];
+  /** 原文と一致しなかったので捨てた行の数 */
+  dropped: number;
   timings: { generateMs: number; tokens: number; tokensPerSecond: number };
 };
 
 const fill = (tpl: string, vars: Record<string, string>) =>
   tpl.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? '');
 
-/** AI の短いまとめ。各行に、いちばん近い原文の行を出典として付ける。 */
+/** LLM の出力の 1 行から、行頭の記号・番号・「題名：」を取り除く */
+function cleanLine(line: string): string {
+  let x = line;
+  for (let k = 0; k < 3; k++) x = x.replace(/^\s*([・\-*•]|\d+[.)．])\s*/, '').trim();
+  for (const c of ragIndex.chunks) {
+    if (x.startsWith(c.title + '：') || x.startsWith(c.title + ':')) x = x.slice(c.title.length + 1).trim();
+  }
+  return x;
+}
+
+/** AI に、資料から質問に合う行を選ばせる。原文の行とほぼ一致した行だけを、原文のまま返す。 */
 export async function summarize(
   result: SearchResult,
   engine: Engine,
@@ -107,13 +121,10 @@ export async function summarize(
     onText,
   );
   const generateMs = Date.now() - t0;
-  const texts = res.text
-    .split('\n')
-    .map((l) => l.replace(/^\s*[・\-*•]\s*/, '').trim())
-    .filter(Boolean)
-    .slice(0, 5);
+  const texts = res.text.split('\n').map(cleanLine).filter(Boolean);
 
-  const lines: SummaryLine[] = [];
+  const picks: Citation[] = [];
+  let dropped = 0;
   for (const text of texts) {
     const v = normalize(await engine.embed(config.similarityPrefix + text));
     let best: Citation | null = null;
@@ -123,10 +134,15 @@ export async function summarize(
         if (!best || score > best.score) best = { chunk: h.chunk, lineIndex: i, score };
       });
     }
-    const citation = best as Citation | null;
-    lines.push({ text, citation: citation && citation.score >= config.citeMinScore ? citation : null });
+    const b = best as Citation | null;
+    if (!b || b.score < config.copyMinScore) {
+      dropped += 1;
+      continue;
+    }
+    if (picks.some((p) => p.chunk.id === b.chunk.id && p.lineIndex === b.lineIndex)) continue;
+    if (picks.length < config.summaryMax) picks.push(b);
   }
-  return { lines, timings: { generateMs, tokens: res.tokens, tokensPerSecond: res.tokensPerSecond } };
+  return { picks, dropped, timings: { generateMs, tokens: res.tokens, tokensPerSecond: res.tokensPerSecond } };
 }
 
 /** 目次用：分類ごとにまとめる（マニュアルに書いた順） */

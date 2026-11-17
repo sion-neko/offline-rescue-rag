@@ -20,10 +20,10 @@ export default function About() {
         <View style={styles.block}>
           <SectionLabel>しくみ</SectionLabel>
           <Text style={[styles.body, { color: t.textSub }]}>
-            スマホの中に入れた山の安全マニュアルを、圏外でも検索できます。検索結果はマニュアルの原文です。「AIで短くまとめる」を押すと、スマホの中の小さなAIが要約します。
+            スマホの中に入れた山の安全マニュアルを、圏外でも検索できます。検索すると、スマホの中の小さなAIが、マニュアルから質問に合う文を選んで先頭に出します。AIが選ぶのは資料の文そのもので、言い換えはしません。その下に、いちばん近い資料の原文を全部出します。
           </Text>
           <Text style={[styles.body, { color: t.textSub }]}>
-            AIは資料にないことを書くことがあります。行動するときは原文を確かめてください。命に関わるときは、迷わず110番か119番へ。
+            AIは大事な文を選び漏らすことがあります。原文も確かめてください。命に関わるときは、迷わず110番か119番へ。
           </Text>
           <Text style={[styles.body, { color: t.danger }]}>いまのマニュアルと用語集は、検証用の仮データ（専門家の監修なし）です。</Text>
         </View>
@@ -42,7 +42,7 @@ export default function About() {
         <View style={styles.block}>
           <SectionLabel>使っているAI</SectionLabel>
           <Text style={[styles.body, { color: t.textSub }]}>
-            要約：LFM2.5-1.2B-JP（Liquid AI、LFM Open License v1.0）{'\n'}検索：EmbeddingGemma-300m（Google、Gemma 利用規約）
+            要点を選ぶ：LFM3-1.7B（Liquid AI、LFM Open License v1.0）{'\n'}検索：EmbeddingGemma-300m（Google、Gemma 利用規約）
           </Text>
         </View>
 

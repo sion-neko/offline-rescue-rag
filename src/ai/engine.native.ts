@@ -36,18 +36,24 @@ class NativeEngine implements Engine {
     if (!this.llm) throw new Error('LLM が読み込まれていません');
     let acc = '';
     const res = await this.llm.completion(
-      { messages, n_predict: options.maxTokens, temperature: options.temperature, jinja: true },
+      // LFM3 は答える前に考える過程を出すモデル。速さと電池のため、考える過程は切る
+      { messages, n_predict: options.maxTokens, temperature: options.temperature, jinja: true, enable_thinking: false },
       (data) => {
         acc += data.token;
         onToken?.(acc);
       },
     );
     return {
-      text: res.text,
+      text: stripThinking(res.text),
       tokens: res.timings.predicted_n,
       tokensPerSecond: res.timings.predicted_per_second,
     };
   }
+}
+
+/** 念のため、考える過程（<think>…</think>）が混ざっていたら取り除く */
+function stripThinking(text: string) {
+  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 }
 
 export function createEngine(): Engine {

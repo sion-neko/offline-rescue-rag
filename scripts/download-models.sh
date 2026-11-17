@@ -16,9 +16,10 @@ download() {
   mv "$out.part" "$out"
 }
 
-# 生成用 LLM：LFM2.5-1.2B-JP-202606（Q4_K_M, 約730MB, LFM Open License v1.0）
-download "https://huggingface.co/LiquidAI/LFM2.5-1.2B-JP-202606-GGUF/resolve/main/LFM2.5-1.2B-JP-202606-Q4_K_M.gguf" "llm.gguf"
-download "https://huggingface.co/LiquidAI/LFM2.5-1.2B-JP-202606-GGUF/resolve/main/LICENSE" "LICENSE-LFM.txt"
+# 生成用 LLM：LFM3-1.7B（Q4_K_M, 約1.1GB, LFM Open License v1.0）
+# LFM2.5-1.2B-JP から替えた。要約で意味を変える間違いが 0 件だったため（docs/llm-comparison.md）
+download "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LFM3-1.7B-Q4_K_M.gguf" "llm.gguf"
+download "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LICENSE" "LICENSE-LFM.txt"
 
 # 検索用 embedding：EmbeddingGemma-300m（QAT Q8_0, 約330MB, Gemma 利用規約）
 # e5-small / ruri-v3 と比べて、関係ない文との点数差がいちばん大きかったので採用。
