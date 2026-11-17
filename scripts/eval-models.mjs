@@ -1,12 +1,16 @@
 // 要約用 LLM の比較。アプリと同じ検索（言い換えの辞書つき）とプロンプトで、決まった質問を要約させ、
 // 各行に近い原文の行（出典）と点数を付けて JSON に書き出す。判定（正しい／条件が抜けた／意味が変わった／資料にない）は人が付ける。
-// 使い方: node scripts/eval-models.mjs <model.gguf> <出力.json>
+// 使い方: node scripts/eval-models.mjs <model.gguf> <出力.json> [プロンプトを上書きする JSON]
+// 上書き JSON の contextTemplate に {lines} があれば、資料の行に番号を振って渡す
 import { readFileSync, writeFileSync } from "node:fs";
 import { getLlama, LlamaChatSession } from "node-llama-cpp";
 
-const [modelPath, outPath] = process.argv.slice(2);
+const [modelPath, outPath, overridePath] = process.argv.slice(2);
 const root = new URL("..", import.meta.url).pathname;
-const config = JSON.parse(readFileSync(root + "src/rag/config.json", "utf8"));
+const config = {
+  ...JSON.parse(readFileSync(root + "src/rag/config.json", "utf8")),
+  ...(overridePath ? JSON.parse(readFileSync(overridePath, "utf8")) : {}),
+};
 const index = JSON.parse(readFileSync(root + "assets/rag/index.json", "utf8"));
 const syn = JSON.parse(readFileSync(root + "data/synonyms.json", "utf8")).words;
 
@@ -49,7 +53,10 @@ for (const q of QUESTIONS) {
   const qv = await emb(config.queryPrefix + ex);
   const hits = index.chunks.map((c) => ({ c, s: dot(c.vector, qv) })).sort((a, b) => b.s - a.s);
   const used = hits.slice(0, config.topK).filter((h) => h.s >= config.minScore);
-  const context = used.map((h) => fill(config.contextTemplate, { title: h.c.title, text: h.c.text })).join("\n\n");
+  let n = 0;
+  const context = used
+    .map((h) => fill(config.contextTemplate, { title: h.c.title, text: h.c.text, lines: h.c.sentences.map((x) => `${++n}. ${x}`).join("\n") }))
+    .join("\n\n");
   const seq = lc.getSequence();
   const sess = new LlamaChatSession({ contextSequence: seq, systemPrompt: config.systemPrompt });
   const t = Date.now();
@@ -64,7 +71,15 @@ for (const q of QUESTIONS) {
   // 考える過程（<think>…</think>）を出すモデルがあれば取り除く
   const text = raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
   const lines = [];
-  for (const line of text.split("\n").map((l) => l.replace(/^\s*[・\-*•]\s*/, "").trim()).filter(Boolean).slice(0, 5)) {
+  // 行頭の記号・番号・「題名：」を取り除く（LFM3 は行の頭に資料の題名を付けることがある）
+  const titles = index.chunks.map((c) => c.title);
+  const clean = (l) => {
+    let x = l;
+    for (let k = 0; k < 3; k++) x = x.replace(/^\s*([・\-*•]|\d+[.)．])\s*/, "").trim();
+    for (const t of titles) if (x.startsWith(t + "：") || x.startsWith(t + ":")) x = x.slice(t.length + 1).trim();
+    return x;
+  };
+  for (const line of text.split("\n").map(clean).filter(Boolean).slice(0, 6)) {
     const v = await emb(config.similarityPrefix + line);
     let best = null;
     for (const h of used) h.c.sentenceVectors.forEach((sv, i) => {
