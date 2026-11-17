@@ -59,6 +59,16 @@ for (const q of QUESTIONS) {
     .join("\n\n");
   const seq = lc.getSequence();
   const sess = new LlamaChatSession({ contextSequence: seq, systemPrompt: config.systemPrompt });
+  // フューショット：例のやりとりを会話の履歴として先に入れておく
+  if (config.fewShot?.length) {
+    sess.setChatHistory([
+      { type: "system", text: config.systemPrompt },
+      ...config.fewShot.flatMap((ex) => [
+        { type: "user", text: fill(config.userTemplate, { context: ex.context, question: ex.question }) },
+        { type: "model", response: [ex.answer] },
+      ]),
+    ]);
+  }
   const t = Date.now();
   let tokens = 0;
   const raw = await sess.prompt(fill(config.userTemplate, { context, question: q }), {

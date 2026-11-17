@@ -1,5 +1,5 @@
 // 検索結果：資料の要点（原文）→ あわせて確認 → AI の短いまとめ（ボタンで作る）→ 関連する資料。
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,10 +51,18 @@ function ResultBody({ q }: { q: string }) {
   }, [q, status.searchReady, engine, store, addRecent]);
 
   // 検索結果が出て AI の準備ができたら、自動で要点を選ばせる（その間も下の原文は読める）
+  // 1 つの検索結果につき 1 回だけ動かす（画面は検索ワードごとに作り直すので、この画面の間だけ覚えておけばよい）
+  const summaryStarted = useRef(false);
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
   useEffect(() => {
-    if (!result?.top || !status.llmReady || summary.kind !== 'idle') return;
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!result?.top || !status.llmReady || summaryStarted.current) return;
+    summaryStarted.current = true;
     setSummary({ kind: 'running' });
     summarize(result, engine)
       .then((s) => {
@@ -62,17 +70,14 @@ function ResultBody({ q }: { q: string }) {
           `要点 gen=${s.timings.generateMs}ms tokens=${s.timings.tokens} ${s.timings.tokensPerSecond.toFixed(1)}tok/s ` +
             `picks=${s.picks.map((p) => p.score.toFixed(2)).join(',')} dropped=${s.dropped}`,
         );
-        if (!cancelled) setSummary({ kind: 'done', result: s });
+        if (mounted.current) setSummary({ kind: 'done', result: s });
       })
       .catch((e) => {
         const message = e instanceof Error ? e.message : String(e);
         log(`要点エラー: ${message}`);
-        if (!cancelled) setSummary({ kind: 'error', message });
+        if (mounted.current) setSummary({ kind: 'error', message });
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [result, status.llmReady, summary.kind, engine]);
+  }, [result, status.llmReady, engine]);
 
   const submit = () => {
     const text = input.trim();
