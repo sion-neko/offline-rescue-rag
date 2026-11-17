@@ -7,7 +7,7 @@ import { getChunk, search, summarize, type ExtraLine, type SearchResult, type Su
 import { log } from '../log';
 import { useApp } from '../state/app';
 import { situations } from '../data/situations';
-import { GlossaryChips, GlossaryText } from '../ui/glossary';
+import { GlossaryText } from '../ui/glossary';
 import { BookIcon, ChevronIcon, PhoneIcon, SparkIcon } from '../ui/icons';
 import { PressableCard, SectionLabel, TopBar } from '../ui/parts';
 import { font, minTouch } from '../ui/theme';
@@ -30,6 +30,12 @@ function ResultBody({ q }: { q: string }) {
   const [result, setResult] = useState<SearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<SummaryState>({ kind: 'idle' });
+  // 原文・あわせて確認・関連する資料は「くわしく見る」で開く。
+  // AI の要点が出ないとき（準備中・失敗・選べる行なし）は、画面が空にならないよう最初から開く
+  // 一度開いたら、AI の準備ができても閉じない（読んでいる途中で中身が消えないように）
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const noPicks = summary.kind === 'error' || (summary.kind === 'done' && summary.result.picks.length === 0);
+  if (result?.top && !detailsOpen && (!status.llmReady || !!status.llmError || noPicks)) setDetailsOpen(true);
 
   useEffect(() => {
     if (!q || !status.searchReady) return;
@@ -126,98 +132,107 @@ function ResultBody({ q }: { q: string }) {
               onCite={openSection}
             />
 
-            <View style={styles.block} testID="top-result">
-              <SectionLabel>いちばん近い資料（原文）</SectionLabel>
-              {result.weak && (
-                <Text style={[styles.body, { color: t.textSub }]} testID="weak-note">
-                  質問との関係が薄いかもしれません。違うときは、言葉を変えるか
-                  <Text onPress={() => router.push('/contents')} style={{ color: t.accent, fontWeight: '700' }}>
-                    {' 目次 '}
-                  </Text>
-                  から探せます。
-                </Text>
-              )}
-              <View style={[styles.card, { backgroundColor: t.surfaceAlt }]}>
-                <Pressable
-                  onPress={() => openSection(result.top!.chunk.id)}
-                  accessibilityRole="button"
-                  accessibilityHint="資料のページを開く"
-                  style={({ pressed }) => [styles.cardTitleRow, { opacity: pressed ? 0.6 : 1 }]}
-                >
-                  <Text style={[styles.cardTitle, { color: t.text }]} accessibilityRole="header">
-                    {result.top.chunk.title}
-                  </Text>
-                  <ChevronIcon color={t.textMuted} />
-                </Pressable>
-                {result.top.chunk.sentences.map((s, i) => (
-                  <View key={i} style={styles.point}>
-                    <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
-                    <GlossaryText text={s} used={used} style={[styles.body, { color: t.text }]} />
-                  </View>
-                ))}
-              </View>
-              <GlossaryChips
-                texts={[
-                  result.top.chunk.title,
-                  ...result.top.chunk.sentences,
-                  ...result.extras.map((x) => x.chunk.sentences[x.lineIndex]),
-                ]}
-              />
-            </View>
-
-            {result.extras.length > 0 && (
-              <View style={styles.block} testID="extras">
-                <SectionLabel>あわせて確認</SectionLabel>
-                {groupExtras(result.extras).map((g) => (
-                  <View key={g.chunk.id} style={[styles.extra, { borderColor: t.border }]}>
-                    {g.lines.map((i) => (
-                      <View key={i} style={styles.point}>
-                        <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
-                        <GlossaryText text={g.chunk.sentences[i]} used={used} style={[styles.body, { color: t.text }]} />
-                      </View>
-                    ))}
-                    <Pressable
-                      onPress={() => openSection(g.chunk.id, g.lines[0])}
-                      accessibilityRole="link"
-                      style={({ pressed }) => [styles.extraSource, { opacity: pressed ? 0.5 : 1 }]}
-                    >
-                      <Text style={[styles.small, { color: t.accent }]}>{g.chunk.title}</Text>
-                      <ChevronIcon size={12} color={t.accent} />
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
+            {!detailsOpen && (
+              <Pressable
+                onPress={() => setDetailsOpen(true)}
+                accessibilityRole="button"
+                testID="details-toggle"
+                style={({ pressed }) => [styles.moreButton, { borderColor: t.border, opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Text style={[styles.moreText, { color: t.text }]}>くわしく見る（原文・関連する資料）</Text>
+                <ChevronIcon color={t.textMuted} />
+              </Pressable>
             )}
 
-            {result.top.chunk.related.length > 0 && (
-              <View style={styles.block} testID="related">
-                <SectionLabel>関連する資料</SectionLabel>
-                <View style={[styles.list, { backgroundColor: t.surfaceAlt }]}>
-                  {result.top.chunk.related.map((id, i) => {
-                    const c = getChunk(id);
-                    if (!c) return null;
-                    return (
-                      <Pressable
-                        key={id}
-                        onPress={() => openSection(id)}
-                        accessibilityRole="button"
-                        style={({ pressed }) => [
-                          styles.listRow,
-                          i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },
-                          { opacity: pressed ? 0.5 : 1 },
-                        ]}
-                      >
-                        <Text style={[styles.listText, { color: t.text }]}>{c.title}</Text>
-                        <ChevronIcon color={t.textMuted} />
-                      </Pressable>
-                    );
-                  })}
+            {detailsOpen && (
+              <>
+                <View style={styles.block} testID="top-result">
+                  <SectionLabel>いちばん近い質問の答え（原文）</SectionLabel>
+                  {result.weak && (
+                    <Text style={[styles.body, { color: t.textSub }]} testID="weak-note">
+                      質問との関係が薄いかもしれません。違うときは、言葉を変えるか
+                      <Text onPress={() => router.push('/contents')} style={{ color: t.accent, fontWeight: '700' }}>
+                        {' 目次 '}
+                      </Text>
+                      から探せます。
+                    </Text>
+                  )}
+                  <View style={[styles.card, { backgroundColor: t.surfaceAlt }]}>
+                    <Pressable
+                      onPress={() => openSection(result.top!.chunk.id)}
+                      accessibilityRole="button"
+                      accessibilityHint="資料のページを開く"
+                      style={({ pressed }) => [styles.cardTitleRow, { opacity: pressed ? 0.6 : 1 }]}
+                    >
+                      <Text style={[styles.cardTitle, { color: t.text }]} accessibilityRole="header">
+                        {result.top.chunk.title}
+                      </Text>
+                      <ChevronIcon color={t.textMuted} />
+                    </Pressable>
+                    {result.top.chunk.sentences.map((s, i) => (
+                      <View key={i} style={styles.point}>
+                        <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
+                        <GlossaryText text={s} used={used} style={[styles.body, { color: t.text }]} />
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
+
+                {result.extras.length > 0 && (
+                  <View style={styles.block} testID="extras">
+                    <SectionLabel>あわせて確認</SectionLabel>
+                    {groupExtras(result.extras).map((g) => (
+                      <View key={g.chunk.id} style={[styles.extra, { borderColor: t.border }]}>
+                        {g.lines.map((i) => (
+                          <View key={i} style={styles.point}>
+                            <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
+                            <GlossaryText text={g.chunk.sentences[i]} used={used} style={[styles.body, { color: t.text }]} />
+                          </View>
+                        ))}
+                        <Pressable
+                          onPress={() => openSection(g.chunk.id, g.lines[0])}
+                          accessibilityRole="link"
+                          style={({ pressed }) => [styles.extraSource, { opacity: pressed ? 0.5 : 1 }]}
+                        >
+                          <Text style={[styles.small, { color: t.accent }]}>{g.chunk.title}</Text>
+                          <ChevronIcon size={12} color={t.accent} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {result.top.chunk.related.length > 0 && (
+                  <View style={styles.block} testID="related">
+                    <SectionLabel>関連する資料</SectionLabel>
+                    <View style={[styles.list, { backgroundColor: t.surfaceAlt }]}>
+                      {result.top.chunk.related.map((id, i) => {
+                        const c = getChunk(id);
+                        if (!c) return null;
+                        return (
+                          <Pressable
+                            key={id}
+                            onPress={() => openSection(id)}
+                            accessibilityRole="button"
+                            style={({ pressed }) => [
+                              styles.listRow,
+                              i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },
+                              { opacity: pressed ? 0.5 : 1 },
+                            ]}
+                          >
+                            <Text style={[styles.listText, { color: t.text }]}>{c.title}</Text>
+                            <ChevronIcon color={t.textMuted} />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </>
             )}
 
             <Text style={[styles.caption, { color: t.textSub }]}>
-              資料は検証用の仮データです。命に関わるときは、迷わず110番か119番へ。
+              AIの要点は資料の文をそのまま選んだもので、漏れることがあります。資料は検証用の仮データです。命に関わるときは、迷わず110番か119番へ。
             </Text>
           </>
         )}
@@ -263,6 +278,7 @@ function SummaryBlock({
 }) {
   const { theme: t } = useApp();
   if (llmFailed && state.kind === 'idle') return null;
+  const sources = sourcesOf(state);
   return (
     <View style={[styles.card, styles.aiCard, { borderColor: t.accent }]} testID="summary">
       <View style={styles.aiLabel}>
@@ -282,7 +298,7 @@ function SummaryBlock({
         <View style={styles.aiWaiting}>
           <ActivityIndicator color={t.accent} />
           <Text style={[styles.small, { color: t.textSub, flex: 1 }]}>
-            資料から選んでいます。下の原文は先に読めます
+            資料から選んでいます…
           </Text>
         </View>
       )}
@@ -293,32 +309,62 @@ function SummaryBlock({
         <Text style={[styles.small, { color: t.textSub }]}>AIが選べる行がありませんでした。下の原文を見てください。</Text>
       )}
       {state.kind === 'done' &&
-        state.result.picks.map((p) => (
-          <View key={`${p.chunk.id}-${p.lineIndex}`} style={styles.point}>
-            <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[styles.body, { color: t.text, fontWeight: '600' }]}>{p.chunk.sentences[p.lineIndex]}</Text>
-              <Pressable
-                onPress={() => onCite(p.chunk.id, p.lineIndex)}
-                accessibilityRole="link"
-                accessibilityLabel={`出典：${p.chunk.title}`}
-                style={({ pressed }) => [styles.citeChip, { backgroundColor: t.accentSoft, opacity: pressed ? 0.6 : 1 }]}
-              >
-                <Text style={[styles.cite, { color: t.accent }]} numberOfLines={1}>
-                  出典：{p.chunk.title}
+        state.result.picks.map((p) => {
+          const n = sources.findIndex((c) => c.id === p.chunk.id);
+          return (
+            <View key={`${p.chunk.id}-${p.lineIndex}`} style={styles.point}>
+              <Text style={[styles.bullet, { color: t.accent }]}>・</Text>
+              <Text style={[styles.body, { color: t.text, fontWeight: '600' }]}>
+                {p.chunk.sentences[p.lineIndex]}
+                {/* 出典は文の最後に番号だけ付ける。押すと資料のその行を開く */}
+                <Text
+                  onPress={() => onCite(p.chunk.id, p.lineIndex)}
+                  accessibilityRole="link"
+                  accessibilityLabel={`出典：${p.chunk.title}`}
+                  style={[styles.citeMark, { color: t.accent }]}
+                >
+                  {' '}
+                  {circled(n)}
                 </Text>
-                <ChevronIcon size={12} color={t.accent} />
-              </Pressable>
+              </Text>
             </View>
-          </View>
-        ))}
-      {state.kind === 'done' && state.result.picks.length > 0 && (
-        <Text style={[styles.small, { color: t.textSub }]}>
-          資料の文をそのまま選んでいます。選び漏れがあるので、下の原文も見てください。
-        </Text>
+          );
+        })}
+      {state.kind === 'done' && sources.length > 0 && (
+        <View style={[styles.sources, { borderTopColor: t.border }]}>
+          {sources.map((c, i) => (
+            <Pressable
+              key={c.id}
+              onPress={() => onCite(c.id, firstLine(state.result, c.id))}
+              accessibilityRole="link"
+              style={({ pressed }) => [styles.sourceRow, { opacity: pressed ? 0.5 : 1 }]}
+            >
+              <Text style={[styles.sourceText, { color: t.textSub }]} numberOfLines={1}>
+                {circled(i)} {c.title}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       )}
     </View>
   );
+}
+
+/** 要点に出てくる資料を、出てきた順に重複なしで並べる */
+function sourcesOf(state: SummaryState) {
+  if (state.kind !== 'done') return [];
+  const list: SummaryResult['picks'][number]['chunk'][] = [];
+  for (const p of state.result.picks) if (!list.some((c) => c.id === p.chunk.id)) list.push(p.chunk);
+  return list;
+}
+
+function firstLine(result: SummaryResult, id: string) {
+  return Math.min(...result.picks.filter((p) => p.chunk.id === id).map((p) => p.lineIndex));
+}
+
+const CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩';
+function circled(i: number) {
+  return CIRCLED[i] ?? `(${i + 1})`;
 }
 
 function NoHit({ question }: { question: string }) {
@@ -380,8 +426,12 @@ const styles = StyleSheet.create({
   aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   aiCard: { borderWidth: 1.5 },
   aiLabelText: { fontSize: 15, fontWeight: '700' },
-  cite: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
-  citeChip: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36, paddingHorizontal: 10, borderRadius: 10, maxWidth: '100%' },
+  citeMark: { fontSize: 15, fontWeight: '700' },
+  sources: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 6 },
+  sourceRow: { minHeight: 32, justifyContent: 'center' },
+  sourceText: { fontSize: font.caption },
+  moreButton: { minHeight: minTouch, borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  moreText: { fontSize: 16, fontWeight: '600' },
   list: { borderRadius: 14, overflow: 'hidden' },
   listRow: { minHeight: minTouch, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   listText: { fontSize: 16, flexShrink: 1 },
