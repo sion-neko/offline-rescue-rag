@@ -1,7 +1,8 @@
 // 「資料にない」と判定する閾値（minScore）を決めるため、関係ある質問・ない質問のいちばん近い点数を並べる。
 import { readFileSync } from "node:fs";
 import { getLlama } from "node-llama-cpp";
-const root = new URL("..", import.meta.url).pathname;
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("..", import.meta.url));
 const config = JSON.parse(readFileSync(root + "src/rag/config.json", "utf8"));
 const index = JSON.parse(readFileSync(root + "assets/rag/index.json", "utf8"));
 const syn = JSON.parse(readFileSync(root + "data/synonyms.json", "utf8")).words;

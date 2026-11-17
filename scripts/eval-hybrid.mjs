@@ -2,7 +2,8 @@
 // 2 番目以降の項目からは「あわせて」読むべき行を AI に選ばせる。比較用に、ベクトルの近さだけで選ぶ方法も出す。
 import { readFileSync } from "node:fs";
 import { getLlama, LlamaChatSession } from "node-llama-cpp";
-const root = new URL("..", import.meta.url).pathname;
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("..", import.meta.url));
 const config = JSON.parse(readFileSync(root + "src/rag/config.json", "utf8"));
 const index = JSON.parse(readFileSync(root + "assets/rag/index.json", "utf8"));
 const llama = await getLlama({ gpu: false });

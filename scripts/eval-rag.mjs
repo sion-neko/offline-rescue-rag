@@ -2,8 +2,9 @@
 // 使い方: node scripts/eval-rag.mjs ["質問" ...]
 import { readFileSync } from "node:fs";
 import { getLlama, LlamaChatSession } from "node-llama-cpp";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const config = JSON.parse(readFileSync(root + "src/rag/config.json", "utf8"));
 const index = JSON.parse(readFileSync(root + "assets/rag/index.json", "utf8"));
 const questions = process.argv.slice(2).length ? process.argv.slice(2) : [

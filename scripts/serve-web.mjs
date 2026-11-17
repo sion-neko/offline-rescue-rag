@@ -4,8 +4,10 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+// .pathname だと Windows で "/D:/..." になるので fileURLToPath で変換する
+const root = fileURLToPath(new URL("..", import.meta.url));
 const port = Number(process.env.PORT ?? 8081);
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".wasm": "application/wasm", ".json": "application/json", ".png": "image/png", ".ico": "image/x-icon", ".css": "text/css" };
 

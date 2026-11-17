@@ -1,7 +1,8 @@
 // アプリの「AIで短くまとめる」と同じ手順（検索 → 要約 → 各行に近い原文の出典を付ける）を試す。
 import { readFileSync } from "node:fs";
 import { getLlama, LlamaChatSession } from "node-llama-cpp";
-const root = new URL("..", import.meta.url).pathname;
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("..", import.meta.url));
 const config = JSON.parse(readFileSync(root + "src/rag/config.json", "utf8"));
 const index = JSON.parse(readFileSync(root + "assets/rag/index.json", "utf8"));
 const llama = await getLlama({ gpu: false });

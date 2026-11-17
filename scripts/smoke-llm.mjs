@@ -1,5 +1,6 @@
 import { getLlama, LlamaChatSession } from "node-llama-cpp";
-const root = new URL("../models/", import.meta.url).pathname;
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("../models/", import.meta.url));
 const llama = await getLlama({ gpu: false });
 const t0 = Date.now();
 const model = await llama.loadModel({ modelPath: root + "llm.gguf" });

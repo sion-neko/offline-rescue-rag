@@ -4,9 +4,10 @@
 // 上書き JSON の contextTemplate に {lines} があれば、資料の行に番号を振って渡す
 import { readFileSync, writeFileSync } from "node:fs";
 import { getLlama, LlamaChatSession } from "node-llama-cpp";
+import { fileURLToPath } from "node:url";
 
 const [modelPath, outPath, overridePath] = process.argv.slice(2);
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const config = {
   ...JSON.parse(readFileSync(root + "src/rag/config.json", "utf8")),
   ...(overridePath ? JSON.parse(readFileSync(overridePath, "utf8")) : {}),

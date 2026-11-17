@@ -1,7 +1,8 @@
 // embedding モデルが検索に使えるか（関係ある文が上に来るか）を確かめる
 // 使い方: node scripts/check-embed.mjs <model.gguf> <queryPrefix> <passagePrefix>
 import { getLlama } from "node-llama-cpp";
-const [modelPath = new URL("../models/embed.gguf", import.meta.url).pathname, qp = "query: ", pp = "passage: "] = process.argv.slice(2);
+import { fileURLToPath } from "node:url";
+const [modelPath = fileURLToPath(new URL("../models/embed.gguf", import.meta.url)), qp = "query: ", pp = "passage: "] = process.argv.slice(2);
 const llama = await getLlama({ gpu: false });
 const m = await llama.loadModel({ modelPath });
 const c = await m.createEmbeddingContext();

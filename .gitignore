@@ -47,3 +47,6 @@ yarn-error.*
 
 # 確認用のスクリーンショット（作業用）
 /screenshots/
+
+# 作業用の一時ファイル
+/_scratch/
